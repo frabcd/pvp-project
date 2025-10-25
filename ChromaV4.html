@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Chroma Core Arena — V4.1 (Stability Patch)</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <!-- Three.js import map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    body { margin: 0; padding: 0; background-color: #000; color: #fff; font-family: 'Orbitron', 'Consolas', monospace; overflow: hidden; }
+    canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+    .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(5, 5, 10, 0.8); z-index: 200; transition: opacity 0.5s, visibility 0s 0.5s; opacity: 0; visibility: hidden; backdrop-filter: blur(10px); }
+    .screen.active { opacity: 1; visibility: visible; transition-delay: 0s; }
+    .panel { background: rgba(10, 20, 30, 0.7); border: 1px solid #00ffff; border-radius: 10px; padding: 40px; box-shadow: 0 0 25px rgba(0, 255, 255, 0.5); text-align: center; max-width: 90vw; width: 900px; }
+    .menu-button { padding: 15px 40px; font-size: 1.2em; background-color: #111; border: 2px solid #fff; color: #fff; cursor: pointer; border-radius: 6px; transition: all 0.2s; font-family: 'Orbitron', sans-serif; margin: 8px; width: 350px; text-align: center; }
+    .menu-button:hover:not(:disabled) { background-color: #fff; color: #000; box-shadow: 0 0 15px #fff; }
+    .menu-button:disabled { cursor: not-allowed; opacity: 0.5; }
+    input { padding: 12px; font-size: 1.1em; background-color: #111; border: 2px solid #fff; color: #fff; border-radius: 6px; width: 350px; margin: 6px auto; display: block; text-align: center; }
+    #login-message, #leaderboard-message, #room-status { min-height: 20px; color: #00ffff; }
+    #ui-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 10; }
+    .player-hud { position: absolute; bottom: 20px; display: flex; align-items: center; gap: 12px; background: rgba(10, 20, 30, 0.7); border-radius: 10px; padding: 10px; border: 1px solid #555; backdrop-filter: blur(5px); }
+    #player1-hud { left: 20px; }
+    #player2-hud { right: 20px; flex-direction: row-reverse; }
+    .portrait-container { position: relative; width: 100px; height: 100px; }
+    .portrait { width: 100%; height: 100%; border-radius: 50%; border: 3px solid; object-fit: cover; }
+    .portrait-canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px; z-index: -1; }
+    .circular-bars svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .bar-bg { fill: none; stroke: rgba(0,0,0,0.3); }
+    .bar-fill { fill: none; transition: stroke-dashoffset 0.3s ease; }
+    #p1-health-bar-fill, #p2-health-bar-fill { stroke: #0f0; }
+    #p1-energy-bar-fill, #p2-energy-bar-fill { stroke: #ff0; }
+    .hud-details { display: flex; flex-direction: column; }
+    .skills-container { display: flex; gap: 8px; margin-bottom: 5px; }
+    .skill { width: 45px; height: 45px; border: 2px solid #888; border-radius: 6px; position: relative; background-color: #222; display: flex; justify-content: center; align-items: center; font-size: 1.2em; font-weight: bold; }
+    .skill.ready { border-color: #fff; box-shadow: 0 0 8px #fff; }
+    .cooldown-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); color: white; display: flex; justify-content: center; align-items: center; font-size: 1.2em; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; border-radius: 4px; }
+    #game-message-container { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 4.5em; font-weight: 900; text-shadow: 0 0 20px #fff; z-index: 50; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 10px 0 16px; }
+    .tab { padding: 8px 12px; border: 1px solid #888; border-radius: 6px; cursor: pointer; }
+    .tab.active { border-color: #00ffff; color: #00ffff; box-shadow: 0 0 8px #00ffff; }
+    #char-select-screen .panel { max-width: 95vw; width: 1500px; }
+    .char-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; width: 100%; margin-bottom: 20px; max-height: 60vh; overflow-y: auto; padding: 10px;}
+    .char-card { width: 200px; height: 280px; border: 2px solid #555; border-radius: 10px; background: rgba(17,17,17,.85); padding: 10px; transition: all .2s; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; }
+    .char-card:not(.locked-by-p1):not(.locked-by-p2):hover { border-color: #fff; box-shadow: 0 0 10px #fff; transform: translateY(-3px); }
+    .char-portrait { width: 100%; height: 50%; border-radius: 5px; background-size: cover; background-position: center; }
+    .char-card.locked-by-p1 { border-color: #00ffff; box-shadow: 0 0 15px #00ffff; transform: scale(1.04); }
+    .char-card.locked-by-p2 { border-color: #ff00ff; box-shadow: 0 0 15px #ff00ff; transform: scale(1.04); }
+    .leaderboard-header, .leaderboard-row { display: flex; padding: 10px; }
+    .leaderboard-header { font-weight: bold; color: #00ffff; border-bottom: 2px solid #00ffff; }
+    .leaderboard-row { border-bottom: 1px solid #333; }
+    .leaderboard-row:nth-child(odd) { background-color: rgba(0,0,0,0.2); }
+    .rank { width: 15%; text-align: center; }
+    .name { width: 60%; }
+    .score { width: 25%; text-align: right; font-weight: bold; color: #fff; }
+    #import-data-area { width: 90%; height: 60px; background-color: #111; color: #eee; border: 1px solid #888; border-radius: 5px; padding: 10px; font-family: 'Consolas', monospace; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen active">
+    <div class="panel">
+      <h1 id="login-title">PLAYER LOGIN</h1>
+      <input id="login-nickname" type="text" placeholder="NICKNAME (3-10 chars)" maxlength="10" minlength="3">
+      <input id="login-password" type="password" placeholder="PASSWORD (min 4 chars)" minlength="4">
+      <p id="login-message">&nbsp;</p>
+      <div style="display:flex;justify-content:center;gap:18px">
+        <button id="login-button" class="menu-button" style="width:200px;">LOGIN</button>
+        <button id="signup-button" class="menu-button" style="width:200px;">SIGN UP</button>
+      </div>
+        <button id="guest-login-button" class="menu-button" style="width:200px; margin-top: 10px;">Play as Guest</button>
+    </div>
+  </div>
+
+  <!-- START -->
+  <div id="start-screen" class="screen">
+    <div class="panel">
+      <h1>CHROMA CORE ARENA</h1>
+      <div class="tabs" id="mode-tabs">
+        <div class="tab active" data-mode="LOCAL_CLASSIC">Local Classic Duel</div>
+        <div class="tab" data-mode="LOCAL_RIFT">Local Rift Duel</div>
+        <div class="tab" data-mode="ONLINE_CLASSIC">Online Classic Duel</div>
+        <div class="tab" data-mode="ONLINE_RIFT">Online Rift Duel</div>
+      </div>
+      <button id="start-button" class="menu-button">START LOCAL DUEL</button>
+      <button id="leaderboard-button" class="menu-button">LEADERBOARD</button>
+      <button id="settings-button" class="menu-button">SETTINGS</button>
+
+      <!-- Matchmaking UI -->
+      <div id="online-controls" style="display:none;margin-top:14px">
+        <button id="find-match-button" class="menu-button">Find Online Match</button>
+        <button id="cancel-match-button" class="menu-button" style="display:none; background-color:#c00;">Cancel Search</button>
+        <p id="room-status">&nbsp;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard-screen" class="screen">
+    <div class="panel" style="width: 900px;">
+      <h1>LEADERBOARD</h1>
+      <div class="tabs" id="lb-tabs">
+        <div class="tab active" data-lb="LOCAL_CLASSIC">Local Classic</div>
+        <div class="tab" data-lb="LOCAL_RIFT">Local Rift</div>
+        <div class="tab" data-lb="ONLINE_CLASSIC">Online Classic</div>
+        <div class="tab" data-lb="ONLINE_RIFT">Online Rift</div>
+      </div>
+      <div id="leaderboard-table"></div>
+      <p id="leaderboard-message">&nbsp;</p>
+      <div id="import-export-section" style="margin-top:20px;border-top:1px solid #00ffff;padding-top:12px">
+        <textarea id="import-data-area" placeholder="Paste exported leaderboard snapshot JSON here (optional)…"></textarea>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button id="import-leaderboard-button" class="menu-button" style="width:auto;">Import Snapshot</button>
+          <button id="export-leaderboard-button" class="menu-button" style="width:auto;">Export Snapshot</button>
+        </div>
+      </div>
+      <button id="leaderboard-back-button" class="menu-button" style="margin-top: 16px;">BACK</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settings-screen" class="screen">
+    <div class="panel">
+      <h1>SETTINGS</h1>
+      <p style="margin-bottom: 25px;">Player controls for local multiplayer mode. Online mode uses Player 1 controls.</p>
+      <div class="settings-container" style="display:flex;gap:50px;flex-wrap:wrap;justify-content:center">
+        <div class="player-settings">
+          <h2 style="color:#00ffff;">PLAYER 1 (WASD)</h2>
+          <div>Forward: W</div><div>Backward: S</div><div>Left: A</div><div>Right: D</div>
+          <div>Basic: Space</div><div>Skill1: Q</div><div>Skill2: E</div><div>Skill3: R</div>
+        </div>
+        <div class="player-settings">
+          <h2 style="color:#ff00ff;">PLAYER 2 (IJKL)</h2>
+          <div>Forward: I</div><div>Backward: K</div><div>Left: J</div><div>Right: L</div>
+          <div>Basic: Enter</div><div>Skill1: U</div><div>Skill2: O</div><div>Skill3: P</div>
+        </div>
+      </div>
+      <button id="settings-back-button" class="menu-button">BACK</button>
+    </div>
+  </div>
+
+  <!-- CHAR SELECT -->
+  <div id="char-select-screen" class="screen">
+    <div class="panel">
+      <h1>CHOOSE YOUR ECHO</h1>
+      <div id="char-grid" class="char-grid"></div>
+      <div id="char-select-footer">
+        <p id="lock-in-status">Player 1: Click to select your Echo</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="game-over-screen" class="screen">
+    <div class="panel">
+      <div id="winner-text" style="font-size: 2.4em; margin-bottom: 20px;"></div>
+      <button id="restart-button" class="menu-button">RETURN TO MENU</button>
+    </div>
+  </div>
+
+  <!-- HUD & Countdowns -->
+  <div id="ui-container">
+    <div id="player1-hud" class="player-hud"></div>
+    <div id="player2-hud" class="player-hud"></div>
+  </div>
+  <div id="game-message-container"><span id="countdown-text"></span></div>
+
+  <!-- Audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs, serverTimestamp, onSnapshot, increment, where, deleteDoc, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    /*
+    * ======================================
+    * V4.1 STABILITY & BALANCE PATCH
+    * ======================================
+    *
+    * BUGFIX: Fixed room deletion race conditions in online mode
+    * BUGFIX: Improved memory management and resource disposal
+    * BUGFIX: Fixed HP sync issues in online matches
+    * BUGFIX: Proper cleanup of event listeners on game end
+    * BUGFIX: Fixed geometry disposal memory leaks
+    * BUGFIX: Improved error handling throughout
+    *
+    * BALANCE:
+    * - Normalized projectile speeds (15-25 range)
+    * - Rift mode energy regen: 25/s -> 15/s (total 20/s with base)
+    * - Reduced base energy regen: 5/s -> 5/s (kept same)
+    * - Echo Prime: Phase Shift CD 4s -> 5s
+    * - Tempest: Ball Lightning damage 15 -> 12
+    * - Vortex: Event Horizon damage 40 -> 35
+    * - Oracle: Empower duration 4s -> 6s
+    * - Catalyst: Caustic Blast cost 25 -> 20
+    * - Improved ultimate ability balance
+    */
+
+    /********** Firebase Init **********/
+    const firebaseConfig = {
+      apiKey: "AIzaSyCuBgpaWTxOxpFLxe7GfQY8UytWb3LkpvY",
+      authDomain: "chroma-core-arena.firebaseapp.com",
+      projectId: "chroma-core-arena",
+      storageBucket: "chroma-core-arena.firebasestorage.app",
+      messagingSenderId: "314470360799",
+      appId: "1:314470360799:web:55cfee1b216fcf51072b6a"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.CCA = window.CCA || {};
+    CCA.firebase = { auth, db, serverTimestamp, doc, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs, onSnapshot, increment, addDoc, deleteDoc, writeBatch };
+    const $$ = id => document.getElementById(id);
+
+    const MODES = {
+      LOCAL_CLASSIC:  { key:'LOCAL_CLASSIC',  rift:false },
+      LOCAL_RIFT:     { key:'LOCAL_RIFT',     rift:true  },
+      ONLINE_CLASSIC: { key:'ONLINE_CLASSIC', rift:false },
+      ONLINE_RIFT:    { key:'ONLINE_RIFT',    rift:true  }
+    };
+    CCA.MODES = MODES;
+    let currentMode = MODES.LOCAL_CLASSIC;
+    let isOnline = false;
+
+    function sanitizeNick(n){ return (n||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,30); }
+    function emailFromNick(n){ return `${sanitizeNick(n)}@chroma.local`; }
+
+    async function signupNickname(nick, pass){
+      const email = emailFromNick(nick);
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      await updateProfile(cred.user, { displayName: nick });
+      await setDoc(doc(db, "users", cred.user.uid), {
+        nickname: nick,
+        createdAt: serverTimestamp(),
+        wins: { LOCAL_CLASSIC:0, LOCAL_RIFT:0, ONLINE_CLASSIC:0, ONLINE_RIFT:0 }
+      }, { merge:true });
+      return cred.user;
+    }
+    async function loginNickname(nick, pass){
+      const email = emailFromNick(nick);
+      const cred  = await signInWithEmailAndPassword(auth, email, pass);
+      if(!cred.user.displayName){ await updateProfile(cred.user, { displayName: nick }); }
+      return cred.user;
+    }
+    function explainAuthError(e){
+      $$('login-message').textContent = e?.message || 'Authentication failed.';
+    }
+
+    async function addWin(uid, modeKey){
+      try {
+        const userRef = doc(db, "users", uid);
+        await updateDoc(userRef, { [`wins.${modeKey}`]: increment(1) });
+        const snap = await getDoc(userRef);
+        const nickname = snap.data()?.nickname || 'Guest';
+        const lbRef = doc(db, "leaderboards", modeKey, "scores", uid);
+        await setDoc(lbRef, { nickname, wins: increment(1), updatedAt: serverTimestamp() }, { merge: true });
+      } catch (e) {
+        console.error(`Failed to add win for user ${uid} in mode ${modeKey}:`, e);
+      }
+    }
+    async function fetchLeaderboard(modeKey, topN=50){
+      const q = query(collection(db, "leaderboards", modeKey, "scores"), orderBy("wins","desc"), limit(topN));
+      const snap = await getDocs(q);
+      return snap.docs.map((d,i)=>({ rank:i+1, name:d.data().nickname, wins:d.data().wins }));
+    }
+    CCA.lb = { addWin, fetchLeaderboard };
+
+    const ROOMS = collection(db, 'rooms');
+    const QUEUE = collection(db, 'matchmaking');
+    let queueDocId = null;
+    let eventsListenerUnsub = null;
+
+    async function findMatch(modeKey) {
+      try {
+        if (!auth.currentUser) {
+            $$('room-status').textContent = 'Error: You must be logged in to find a match.';
+            return;
+        }
+        const userId = auth.currentUser.uid;
+        const userNick = auth.currentUser.displayName || 'Guest';
+        $$('find-match-button').disabled = true;
+        $$('cancel-match-button').style.display = 'inline-block';
+        $$('room-status').textContent = 'Searching for an opponent...';
+
+        const q = query(QUEUE, where("mode", "==", modeKey), where("hostId", "!=", userId), limit(1));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            const newQueueDoc = await addDoc(QUEUE, {
+                mode: modeKey,
+                hostId: userId,
+                hostNick: userNick,
+                createdAt: serverTimestamp()
+            });
+            queueDocId = newQueueDoc.id;
+            online.isHost = true;
+            $$('room-status').textContent = 'Waiting for an opponent...';
+            listenQueueDoc(queueDocId);
+        } else {
+            const openQueueDoc = snap.docs[0];
+            queueDocId = openQueueDoc.id;
+            online.isHost = false;
+            
+            const newRoom = await addDoc(ROOMS, {
+                mode: modeKey,
+                createdAt: serverTimestamp(),
+                host: { id: openQueueDoc.data().hostId, nick: openQueueDoc.data().hostNick, charKey: null },
+                guest: { id: userId, nick: userNick, charKey: null },
+                state: { p1CharKey: null, p2CharKey: null, started: false, winner: null }
+            });
+
+            await updateDoc(doc(QUEUE, queueDocId), { roomId: newRoom.id, guestId: userId });
+            online.code = newRoom.id;
+            wireRoomListener();
+        }
+      } catch (e) {
+        console.error("Matchmaking Error:", e);
+        $$('room-status').textContent = 'Error: Could not search. Check Firebase permissions.';
+        $$('find-match-button').disabled = false;
+        $$('cancel-match-button').style.display = 'none';
+      }
+    }
+    
+    function listenQueueDoc(id) {
+        if(online.unsub) online.unsub();
+        online.unsub = onSnapshot(doc(QUEUE, id), async (docSnap) => {
+            if (docSnap.exists() && docSnap.data().roomId) {
+                online.code = docSnap.data().roomId;
+                if(online.unsub) online.unsub(); 
+                online.unsub = null;
+                await deleteDoc(doc(QUEUE, id)); 
+                queueDocId = null;
+                wireRoomListener();
+            }
+        });
+    }
+
+    async function cancelMatchmaking() {
+        if(online.unsub) online.unsub();
+        online.unsub = null;
+        if(queueDocId) {
+            await deleteDoc(doc(QUEUE, queueDocId));
+            queueDocId = null;
+        }
+        $$('find-match-button').disabled = false;
+        $$('cancel-match-button').style.display = 'none';
+        $$('room-status').textContent = '';
+    }
+
+    function listenRoom(code, cb){ return onSnapshot(doc(ROOMS, code), snap => cb(snap.exists()?snap.data():null)); }
+    async function setStarted(code){ await updateDoc(doc(ROOMS, code), { 'state.started': true }); }
+    
+    async function pushState(code, isHost, payload) {
+        const pathPrefix = isHost ? 'state.p1' : 'state.p2';
+        const updates = {};
+        Object.keys(payload).forEach(key => {
+            updates[`${pathPrefix}.${key}`] = payload[key];
+        });
+        if (Object.keys(updates).length > 0) {
+           try {
+             await updateDoc(doc(ROOMS, code), updates);
+           } catch (e) {
+             console.error("Error pushing state:", e);
+           }
+        }
+    }
+
+    async function pushSkillEvent(skillKey) {
+        if (!isOnline || !online.code) return;
+        try {
+            const eventCollection = collection(db, 'rooms', online.code, 'events');
+            await addDoc(eventCollection, {
+                by: online.isHost ? 'host' : 'guest',
+                key: skillKey,
+                timestamp: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Failed to push skill event:", e);
+        }
+    }
+    window.pushSkillEvent = pushSkillEvent;
+
+    function wireEventsListener() {
+        if (eventsListenerUnsub) eventsListenerUnsub();
+
+        const eventCollection = collection(db, 'rooms', online.code, 'events');
+        const myIdentifier = online.isHost ? 'host' : 'guest';
+
+        eventsListenerUnsub = onSnapshot(eventCollection, (snapshot) => {
+            const batch = writeBatch(db);
+            let changesProcessed = 0;
+            snapshot.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    const event = change.data();
+                    if (event.by && event.by !== myIdentifier && event.key) {
+                        const opponent = online.isHost ? window.players?.[1] : window.players?.[0];
+                        if (opponent && typeof opponent.useSkillRemote === 'function') {
+                            console.log(`Received skill event: ${event.key} from opponent`);
+                            opponent.useSkillRemote(event.key);
+                        } else {
+                            console.warn("Opponent or useSkillRemote not found for event:", event);
+                        }
+                    } else if (!event.key) {
+                        console.warn("Received event without key:", event);
+                    }
+                    batch.delete(change.doc.ref);
+                    changesProcessed++;
+                }
+            });
+            if (changesProcessed > 0) {
+                batch.commit().catch(e => console.error("Failed to clear events:", e));
+            }
+        }, (error) => {
+            console.error("Error in events listener:", error);
+        });
+        console.log("Events listener wired for room:", online.code);
+    }
+
+    async function setWinner(code, winner){ await updateDoc(doc(ROOMS, code), { 'state.winner': winner }); }
+    async function selectCharacterOnline(code, isHost, charKey) {
+        const path = isHost ? 'state.p1CharKey' : 'state.p2CharKey';
+        await updateDoc(doc(ROOMS, code), { [path]: charKey });
+    }
+    CCA.online = { listenRoom, setStarted, pushState, setWinner, selectCharacterOnline };
+
+    let gameState = 'LOGIN_SCREEN';
+    let loggedInUser = null; 
+    CCA.flow = { get gameState(){ return gameState; }, set gameState(v){ gameState=v; } };
+    CCA.playersMeta = { get loggedInUser(){ return loggedInUser; } };
+
+    function switchScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); if(id) document.getElementById(id).classList.add('active'); }
+
+    const modeTabs = document.querySelectorAll('#mode-tabs .tab');
+    modeTabs.forEach(t => t.addEventListener('click', ()=>{
+      modeTabs.forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      currentMode = MODES[t.dataset.mode];
+      isOnline = (currentMode===MODES.ONLINE_CLASSIC || currentMode===MODES.ONLINE_RIFT);
+      $$('online-controls').style.display = isOnline ? 'block' : 'none';
+      $$('start-button').style.display = isOnline ? 'none' : 'inline-block';
+    }));
+
+    const lbTabs = document.querySelectorAll('#lb-tabs .tab');
+    lbTabs.forEach(t => t.addEventListener('click', ()=>{
+      lbTabs.forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      loadLeaderboard(t.dataset.lb);
+    }));
+
+    async function loadLeaderboard(modeKey){
+        const table = $$('leaderboard-table');
+        table.innerHTML = `
+            <div class="leaderboard-header">
+            <div class="rank">RANK</div><div class="name">NICKNAME</div><div class="score">WINS</div>
+            </div>`;
+        const rows = await CCA.lb.fetchLeaderboard(modeKey).catch(e=>{ console.error('LB err', e); return []; });
+        if(rows.length===0){
+            table.innerHTML += '<div class="leaderboard-row"><div class="name" style="width:100%;text-align:center;">No games played yet.</div></div>';
+        }else{
+            rows.forEach(r=>{
+            const row = document.createElement('div'); row.className='leaderboard-row';
+            row.innerHTML = `<div class="rank">#${r.rank}</div><div class="name">${r.name}</div><div class="score">${r.wins}</div>`;
+            table.appendChild(row);
+            });
+        }
+    }
+    
+    $$('start-button').addEventListener('click', ()=>{
+      if(!isOnline){
+        window.loggedInUsers = { p1: 'Player 1', p2: 'Player 2' };
+        CCA.flow.gameState='CHAR_SELECT'; switchScreen('char-select-screen'); window.setupCharSelect(null);
+      }
+    });
+    $$('leaderboard-button').addEventListener('click', ()=>{ CCA.flow.gameState='LEADERBOARD'; switchScreen('leaderboard-screen'); loadLeaderboard('LOCAL_CLASSIC'); });
+    $$('leaderboard-back-button').addEventListener('click', ()=>{ CCA.flow.gameState='START_SCREEN'; switchScreen('start-screen'); });
+    $$('settings-button').addEventListener('click', ()=>{ CCA.flow.gameState='SETTINGS'; switchScreen('settings-screen'); });
+    $$('settings-back-button').addEventListener('click', ()=>{ CCA.flow.gameState='START_SCREEN'; switchScreen('start-screen'); });
+
+    let online = { code:null, isHost:false, unsub:null, ready:false };
+    $$('find-match-button').addEventListener('click', () => findMatch(currentMode.key));
+    $$('cancel-match-button').addEventListener('click', cancelMatchmaking);
+
+    function wireRoomListener(){
+      if(online.unsub) online.unsub();
+      console.log("Wiring room listener for room:", online.code);
+      online.unsub = listenRoom(online.code, (room)=>{
+        if(!room) {
+             console.log("Room data is null, detaching listener for:", online.code);
+             if (online.unsub) online.unsub();
+             online.unsub = null;
+             if(CCA.flow.gameState !== 'START_SCREEN' && CCA.flow.gameState !== 'LOGIN_SCREEN' && CCA.flow.gameState !== 'GAME_OVER') {
+                console.error("Room connection lost. Returning to main menu."); 
+                const statusElement = $$('room-status') || $$('login-message');
+                if (statusElement) {
+                    statusElement.textContent = "Room connection lost. Returning to menu...";
+                }
+                setTimeout(() => resetGame(true), 1500);
+             }
+             return;
+        }
+        console.log("Received room update:", room);
+
+        if (CCA.flow.gameState === 'CHAR_SELECT') {
+            window.setupCharSelect(room.state);
+        }
+        
+        if(room.host.id && room.guest.id && !room.state.started && CCA.flow.gameState!=='CHAR_SELECT'){
+          console.log("Both players joined, moving to char select");
+          window.loggedInUsers = { p1: room.host.nick, p2: room.guest.nick };
+          CCA.flow.gameState='CHAR_SELECT'; switchScreen('char-select-screen'); window.setupCharSelect(room.state);
+        }
+        
+        if (room.state.p1CharKey && room.state.p2CharKey && CCA.flow.gameState === 'CHAR_SELECT') {
+            console.log("Both players locked in, starting game and wiring events listener");
+            wireEventsListener();
+            window.startGame(room.state.p1CharKey, room.state.p2CharKey);
+        }
+
+        if(CCA.flow.gameState==='ACTIVE' && room.state.started){
+          const oppState = online.isHost ? room.state.p2 : room.state.p1;
+          const opp = online.isHost ? window.players?.[1] : window.players?.[0];
+          if(opp && oppState){
+            if(oppState.pos){
+              opp.networkTargetPosition.set(oppState.pos.x, oppState.pos.y, oppState.pos.z);
+            }
+            if (typeof oppState.energy !== 'undefined') opp.energy = oppState.energy;
+            
+            if (typeof oppState.hp !== 'undefined' && opp.hp !== oppState.hp) {
+                console.log(`Opponent HP updated via network: ${opp.hp} -> ${oppState.hp}`);
+                opp.hp = oppState.hp;
+                if (opp.hp <= 0 && !opp.isDead) {
+                    opp.die();
+                }
+            }
+          }
+
+          const meState = online.isHost ? room.state.p1 : room.state.p2;
+          const me = online.isHost ? window.players?.[0] : window.players?.[1];
+          if(me && meState && !me.isDead) {
+              if (typeof meState.hp !== 'undefined' && me.hp !== meState.hp) {
+                  console.log(`My HP updated via network: ${me.hp} -> ${meState.hp}`);
+                  me.hp = meState.hp;
+                  if (me.hp <= 0) {
+                      me.die();
+                  }
+              }
+          }
+        }
+        if(room.state.winner && CCA.flow.gameState!=='GAME_OVER'){ 
+            console.log("Winner declared via network:", room.state.winner);
+            window.endGame(room.state.winner); 
+        }
+      }, (error) => {
+          console.error("Error in room listener:", error);
+          if (CCA.flow.gameState !== 'START_SCREEN' && CCA.flow.gameState !== 'LOGIN_SCREEN') {
+             console.error("Error connecting to room. Returning to main menu.");
+             const statusElement = $$('room-status') || $$('login-message');
+             if (statusElement) {
+                 statusElement.textContent = "Error connecting to room. Returning to menu...";
+             }
+             setTimeout(() => resetGame(true), 1500);
+          }
+      });
+    }
+
+    setInterval(()=>{
+      if(!isOnline || CCA.flow.gameState!=='ACTIVE' || !online.code) return;
+      const me = online.isHost ? window.players?.[0] : window.players?.[1];
+      if(!me || me.isDead) return;
+      pushState(online.code, online.isHost, {
+        pos:{ x:me.mesh.position.x, y:me.mesh.position.y, z:me.mesh.position.z },
+        energy: me.energy
+      }).catch(()=>{});
+    }, 100);
+
+    $$('signup-button').addEventListener('click', async ()=>{
+      const nick = ($$('login-nickname')?.value||'').trim(), pass = ($$('login-password')?.value||'').trim();
+      if(nick.length<3 || pass.length<4){ $$('login-message').textContent='Invalid nickname or password.'; return; }
+      try{
+        await signupNickname(nick, pass);
+        await loginNickname(nick, pass);
+        handleSuccessfulLogin();
+      }catch(e){ explainAuthError(e); }
+    });
+    $$('login-button').addEventListener('click', async ()=>{
+      const nick = ($$('login-nickname')?.value||'').trim(), pass = ($$('login-password')?.value||'').trim();
+      if(!nick||!pass){ $$('login-message').textContent='Enter nickname and password.'; return; }
+      try{
+        await loginNickname(nick, pass);
+        handleSuccessfulLogin();
+      }catch(e){ explainAuthError(e); }
+    });
+    $$('guest-login-button').addEventListener('click', async () => {
+        try {
+            const userCred = await signInAnonymously(auth);
+            const guestName = `Guest${Math.floor(Math.random()*1000)}`;
+            await updateProfile(userCred.user, { displayName: guestName });
+            await setDoc(doc(db, "users", userCred.user.uid), {
+                nickname: guestName,
+                createdAt: serverTimestamp(),
+                wins: { LOCAL_CLASSIC:0, LOCAL_RIFT:0, ONLINE_CLASSIC:0, ONLINE_RIFT:0 }
+            }, { merge:true });
+            handleSuccessfulLogin();
+        } catch(e) { explainAuthError(e); }
+    });
+
+    function handleSuccessfulLogin(){
+      loggedInUser = auth.currentUser;
+      CCA.flow.gameState='START_SCREEN';
+      switchScreen('start-screen');
+    }
+
+    window.mode = { get current(){ return currentMode; }, get isOnline(){ return isOnline; }, onlineState: online };
+    window.switchScreen = switchScreen;
+    window.addWin = addWin;
+    window.firebaseAuth = auth;
+    
+    document.body.addEventListener('click', async () => {
+        if(window.audioInitialized) return;
+        window.audioInitialized = true;
+        if (Tone.context.state !== 'running') {
+            await Tone.start().catch(e => {
+                console.warn("Tone.js worklet failed to load, audio might be limited.", e);
+            });
+        }
+        window.initSounds();
+    }, { once: true });
+
+    /********** Constants & structures **********/
+    window.loggedInUsers = { p1: 'Player 1', p2: 'Player 2' };
+
+    const controls = { p1: { forward: 'w', backward: 's', left: 'a', right: 'd', basicAttack: ' ', skill1: 'q', skill2: 'e', skill3: 'r' }, p2: { forward: 'i', backward: 'k', left: 'j', right: 'l', basicAttack: 'enter', skill1: 'u', skill2: 'o', skill3: 'p' } };
+    const keys = {};
+    
+    const particleTexture = new THREE.TextureLoader().load('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABGklEQVRYR+2VwQ2DMAxFr9sN2IAt2A3YgG3YDbpBG7QbsAGb4A17Q1JISklK/4mH/2mSb49fEuA/AhzwCMiAHfC8vYICuAI2Z4bCzcCFBoDd0hMgoA+gUWgZAFVoeQLoFGp+Bugu1LwAej9UfA96PxQ8D/pAFDwP+kAUfA/6QBT8DhpAFHwO2kAUfAqaQBR8CphAFHwJmkAUfAqaQBR8CphAFHwJmkAUfAqaQBR8CphAFHwJmkAUfApqgSi4FNQAqfAqqAFT4FVQAzV4FXwCarwKvgaqwCvwHFSBK/AgqgZX4EVQDC/AiqAaW4CVQDazAS6AaWIFbYBZYgVtgFVgBL/AGrAALeAO2YAH+AF9jAUkP/AnrAAAAAElFTkSuQmCC');
+
+    const CHARACTERS = {
+      ECHO_PRIME: { name: "Echo Prime", hp: 100, speed: 8, color: 0x00ffff, attackType: 'RANGED', skills: { s1: {name:"Power Shot", cost: 25, cd: 4}, s2: {name:"Phase Shift", cost: 30, cd: 5}, s3: {name:"Static Field", cost: 50, cd: 12} } },
+      AEGIS: { name: "Aegis", hp: 140, speed: 6, color: 0xffa500, attackType: 'MELEE', skills: { s1: {name:"Aegis Charge", cost: 20, cd: 5}, s2: {name:"Energy Shield", cost: 40, cd: 8}, s3: {name:"Overload", cost: 100, cd: 15} } },
+      SPECTRE: { name: "Spectre", hp: 85, speed: 10, color: 0x9400d3, attackType: 'MELEE', skills: { s1: {name:"Venom Blade", cost: 15, cd: 4}, s2: {name:"Blink", cost: 25, cd: 5}, s3: {name:"Cloak", cost: 60, cd: 12} } },
+      JAVELIN: { name: "Javelin", hp: 90, speed: 7, color: 0x32cd32, attackType: 'RANGED', skills: { s1: {name:"Targeting Array", cost: 30, cd: 10}, s2: {name:"Slowing Mine", cost: 40, cd: 10}, s3: {name:"Laser Core", cost: 80, cd: 18} } },
+      TEMPEST: { name: "Tempest", hp: 100, speed: 8, color: 0x1e90ff, attackType: 'RANGED', skills: { s1: {name:"Static Orb", cost: 25, cd: 6}, s2: {name:"Ball Lightning", cost: 50, cd: 12}, s3: {name:"Eye of the Storm", cost: 70, cd: 20} } },
+      GLITCH: { name: "Glitch", hp: 100, speed: 8, color: 0xf0e68c, attackType: 'RANGED', skills: { s1: {name:"Corruption", cost: 30, cd: 8}, s2: {name:"Rewind", cost: 40, cd: 10}, s3: {name:"Swap", cost: 60, cd: 20} } },
+      COLOSSUS: { name: "Colossus", hp: 140, speed: 6.5, color: 0xdc143c, attackType: 'MELEE', skills: { s1: {name:"Decimate", cost: 20, cd: 3}, s2: {name:"Tectonic Slam", cost: 30, cd: 7}, s3: {name:"Unstoppable Force", cost: 80, cd: 20} } },
+      CHRONOMANCER: { name: "Chronomancer", hp: 95, speed: 8, color: 0x40e0d0, attackType: 'RANGED', skills: { s1: {name:"Temporal Anomaly", cost: 35, cd: 9}, s2: {name:"Stasis Field", cost: 40, cd: 12}, s3: {name:"Chrono Prison", cost: 75, cd: 18} } },
+      ORACLE: { name: "Oracle", hp: 110, speed: 7, color: 0xffffff, attackType: 'RANGED', skills: { s1: {name:"Empower", cost: 25, cd: 12}, s2: {name:"Sentry Turret", cost: 40, cd: 10}, s3: {name:"Bastion Protocol", cost: 60, cd: 18} } },
+      ZEPHYR: { name: "Zephyr", hp: 85, speed: 11, color: 0x90ee90, attackType: 'RANGED', skills: { s1: {name:"Tailwind", cost: 20, cd: 8}, s2: {name:"Wind Wall", cost: 40, cd: 10}, s3: {name:"Cyclone", cost: 70, cd: 15} } },
+      NULL: { name: "Null", hp: 100, speed: 8.5, color: 0xa020f0, attackType: 'RANGED', skills: { s1: {name:"Feedback Loop", cost: 30, cd: 7}, s2: {name:"Silence", cost: 40, cd: 12}, s3: {name:"Spell Shield", cost: 30, cd: 15} } },
+      VORTEX: { name: "Vortex", hp: 100, speed: 7.5, color: 0x6a0dad, attackType: 'RANGED', skills: { s1: {name:"Singularity", cost: 30, cd: 8}, s2: {name:"Gravity Well", cost: 40, cd: 12}, s3: {name:"Event Horizon", cost: 80, cd: 20} } },
+      MIRAGE: { name: "Mirage", hp: 80, speed: 9.5, color: 0xc0c0c0, attackType: 'MELEE', skills: { s1: {name:"Doppelganger", cost: 35, cd: 10}, s2: {name:"Shimmer", cost: 25, cd: 7}, s3: {name:"Hallucinate", cost: 70, cd: 18} } },
+      FORGE: { name: "Forge", hp: 120, speed: 6.5, color: 0xcd7f32, attackType: 'MELEE', skills: { s1: {name:"Build Turret", cost: 40, cd: 10}, s2: {name:"Barrier Wall", cost: 30, cd: 12}, s3: {name:"Siege Mode", cost: 60, cd: 16} } },
+      CATALYST: { name: "Catalyst", hp: 90, speed: 8, color: 0x00ff7f, attackType: 'RANGED', skills: { s1: {name:"Caustic Blast", cost: 20, cd: 5}, s2: {name:"Adrenal Haze", cost: 45, cd: 14}, s3: {name:"Chain Reaction", cost: 75, cd: 19} } },
+      RONIN: { name: "Ronin", hp: 85, speed: 10.5, color: 0xff4500, attackType: 'MELEE', skills: { s1: {name:"Iaijutsu Dash", cost: 20, cd: 4}, s2: {name:"Parry Stance", cost: 30, cd: 9}, s3: {name:"Blade Fury", cost: 65, cd: 15} } }
+    };
+    const charKeys = Object.keys(CHARACTERS);
+    
+    const SKILL_ICONS = {
+        basicAttack: 'ATK',
+        "Power Shot": 'PS', "Phase Shift": 'SH', "Static Field": 'SF',
+        "Aegis Charge": 'AC', "Energy Shield": 'ES', "Overload": 'OV',
+        "Venom Blade": 'VB', "Blink": 'BL', "Cloak": 'CL',
+        "Targeting Array": 'TA', "Slowing Mine": 'SM', "Laser Core": 'LC',
+        "Static Orb": 'SO', "Ball Lightning": 'BL', "Eye of the Storm": 'ES',
+        "Corruption": 'CR', "Rewind": 'RW', "Swap": 'SW',
+        "Decimate": 'DC', "Tectonic Slam": 'TS', "Unstoppable Force": 'UF',
+        "Temporal Anomaly": 'TA', "Stasis Field": 'SF', "Chrono Prison": 'CP',
+        "Empower": 'EM', "Sentry Turret": 'ST', "Bastion Protocol": 'BP',
+        "Tailwind": 'TW', "Wind Wall": 'WW', "Cyclone": 'CY',
+        "Feedback Loop": 'FL', "Silence": 'SL', "Spell Shield": 'SS',
+        "Singularity": 'SI', "Gravity Well": 'GW', "Event Horizon": 'EH',
+        "Doppelganger": 'DG', "Shimmer": 'SH', "Hallucinate": 'HL',
+        "Build Turret": 'BT', "Barrier Wall": 'BW', "Siege Mode": 'SM',
+        "Caustic Blast": 'CB', "Adrenal Haze": 'AH', "Chain Reaction": 'CR',
+        "Iaijutsu Dash": 'ID', "Parry Stance": 'PS', "Blade Fury": 'BF',
+    };
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    renderer.shadowMap.enabled = true;
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+    const clock = new THREE.Clock();
+    const arenaSize = 45;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(-15, 20, 10);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+    scene.add(new THREE.GridHelper(arenaSize, arenaSize, 0x00ffff, 0x333333));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(arenaSize, arenaSize), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    const obstacles = [];
+    const pylonGeo = new THREE.CylinderGeometry(1,1,6,8);
+    const pylonMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8, roughness: 0.3 });
+    [new THREE.Vector3(10,3,10), new THREE.Vector3(-10,3,-10), new THREE.Vector3(10,3,-10), new THREE.Vector3(-10,3,10), new THREE.Vector3(0,3,0)]
+    .forEach(pos => { const pylon = new THREE.Mesh(pylonGeo, pylonMat); pylon.position.copy(pos); pylon.castShadow = true; pylon.receiveShadow = true; scene.add(pylon); const box = new THREE.Box3().setFromObject(pylon); box.isPylon=true; obstacles.push(box); });
+
+    // Sound setup
+    let audioReady = false;
+    let sounds = {};
+    window.initSounds = () => {
+        sounds = {
+          shoot: new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(),
+          hit: new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.1, octaves: 4, envelope: { attack: 0.001, decay: 0.2, sustain: 0 } }).toDestination(),
+          death: new Tone.PolySynth(Tone.MetalSynth, { frequency: 50, envelope: { attack: 0.01, decay: 1, release: 0.5 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5 }).toDestination(),
+          shield: new Tone.PolySynth(Tone.NoiseSynth, { noise: { type: 'pink' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 } }).toDestination(),
+          teleport: new Tone.PolySynth(Tone.PluckSynth, { attackNoise: 1, dampening: 4000, resonance: 0.7 }).toDestination(),
+          laser: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 1.2, modulationIndex: 10, envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 0.2 } }).toDestination(),
+          explosion: new Tone.PolySynth(Tone.MembraneSynth, { pitchDecay: 0.5, octaves: 10, envelope: { attack: 0.01, decay: 0.8, sustain: 0 } }).toDestination(),
+          charge: new Tone.PolySynth(Tone.FMSynth, { harmonicity: 0.5, modulationIndex: 10, envelope: { attack: 0.2, decay: 0.3, sustain: 0.1, release: 0.1 } }).toDestination(),
+        };
+        sounds.shoot.volume.value = -12;
+        sounds.hit.volume.value = -6;
+        sounds.teleport.volume.value = -6;
+        audioReady = true;
+    };
+
+    // Game lists
+    window.players = [];
+    let projectiles = [];
+    let specialObjects = [];
+    let p1Select=-1, p2Select=-1, p1Locked=false, p2Locked=false;
+    
+    // HUD 3D Portrait Renderers
+    let hudScenes = { p1: null, p2: null };
+    let hudCameras = { p1: null, p2: null };
+    let hudModels = { p1: null, p2: null };
+
+    // HUD functions
+    function buildPlayerHUD(playerNum, character){
+        const hud = document.getElementById(`player${playerNum}-hud`);
+        hud.className='player-hud';
+        hud.style.borderColor = `#${new THREE.Color(character.color).getHexString()}`;
+        const playerName = window.loggedInUsers[`p${playerNum}`] || `Player ${playerNum}`;
+        const sk = character.skills;
+
+        const hudScene = new THREE.Scene();
+        hudScene.background = new THREE.Color(0x112233);
+        const hudCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+        hudCamera.position.set(0, 2.5, 4.5);
+        hudCamera.lookAt(0, 2, 0);
+        hudScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const hudLight = new THREE.DirectionalLight(0xffffff, 1);
+        hudLight.position.set(1, 1, 1);
+        hudScene.add(hudLight);
+        
+        const hudModel = createCharacterModel(character, false);
+        hudModel.position.set(0, 0, 0);
+        hudScene.add(hudModel);
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'portrait-canvas';
+        
+        hudScenes[`p${playerNum}`] = hudScene;
+        hudCameras[`p${playerNum}`] = hudCamera;
+        hudModels[`p${playerNum}`] = hudModel;
+
+        hud.innerHTML = `
+            <div class="portrait-container">
+                <svg viewBox="0 0 36 36" class="circular-bars">
+                    <path class="bar-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.83 a 15.9155 15.9155 0 0 1 0 -31.83" stroke-width="3" />
+                    <path class="bar-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.83 a 15.9155 15.9155 0 0 1 0 -31.83" stroke-width="3" transform="scale(0.8) translate(4.5, 4.5)" />
+                    <path id="p${playerNum}-health-bar-fill" class="bar-fill" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.83 a 15.9155 15.9155 0 0 1 0 -31.83" stroke-width="3" stroke-dasharray="100, 100" stroke-dashoffset="0"/>
+                    <path id="p${playerNum}-energy-bar-fill" class="bar-fill" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.83 a 15.9155 15.9155 0 0 1 0 -31.83" stroke-width="3" stroke-dasharray="100, 100" stroke-dashoffset="0" transform="scale(0.8) translate(4.5, 4.5)" />
+                </svg>
+            </div>
+            <div class="hud-details">
+            <h2 style="margin:0 0 5px 0; font-size:1.1em">${playerName} (${character.name})</h2>
+            <div class="skills-container">
+                <div class="skill" id="p${playerNum}-skill-basicAttack">${SKILL_ICONS.basicAttack || ''}<div class="cooldown-overlay"></div></div>
+                <div class="skill" id="p${playerNum}-skill-s1">${SKILL_ICONS[sk.s1.name] || ''}<div class="cooldown-overlay"></div></div>
+                <div class="skill" id="p${playerNum}-skill-s2">${SKILL_ICONS[sk.s2.name] || ''}<div class="cooldown-overlay"></div></div>
+                <div class="skill" id="p${playerNum}-skill-s3">${SKILL_ICONS[sk.s3.name] || ''}<div class="cooldown-overlay"></div></div>
+            </div>
+            </div>`;
+        
+        hud.querySelector('.portrait-container').appendChild(canvas);
+    }
+
+    function renderHUDs(delta) {
+        for (const playerNum of [1, 2]) {
+            const hudScene = hudScenes[`p${playerNum}`];
+            const hudCamera = hudCameras[`p${playerNum}`];
+            const hudModel = hudModels[`p${playerNum}`];
+            const hud = document.getElementById(`player${playerNum}-hud`);
+            const canvas = hud?.querySelector('.portrait-canvas');
+
+            if (hudScene && hudCamera && hudModel && canvas) {
+                hudModel.rotation.y += delta * 0.5;
+                
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                        canvas.width = rect.width;
+                        canvas.height = rect.height;
+                        hudCamera.aspect = rect.width / rect.height;
+                        hudCamera.updateProjectionMatrix();
+                    }
+
+                    const mainCanvasRect = renderer.domElement.getBoundingClientRect();
+                    const left = rect.left - mainCanvasRect.left;
+                    const bottom = mainCanvasRect.bottom - rect.bottom; 
+
+                    renderer.setScissorTest(true);
+                    renderer.setScissor(left, bottom, rect.width, rect.height);
+                    renderer.setViewport(left, bottom, rect.width, rect.height);
+
+                    renderer.render(hudScene, hudCamera);
+                }
+            }
+        }
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
+    }
+
+    function updateUI(){
+        if(window.players.length<2) return;
+        window.players.forEach((p,i)=>{
+            const n=i+1;
+            const hb=document.getElementById(`p${n}-health-bar-fill`);
+            const eb=document.getElementById(`p${n}-energy-bar-fill`);
+            if(hb) hb.style.strokeDashoffset = 100 - (p.hp / p.maxHp) * 100;
+            if(eb) eb.style.strokeDashoffset = 100 - (p.energy / p.maxEnergy) * 100;
+
+            for(const key of ['basicAttack','s1','s2','s3']){
+            if(!p.cooldowns.hasOwnProperty(key)) continue;
+            const el=document.getElementById(`p${n}-skill-${key}`); if(!el) continue;
+            const overlay=el.querySelector('.cooldown-overlay');
+            if(!overlay) continue;
+            if(p.cooldowns[key] > 0){ overlay.style.opacity='1'; overlay.textContent=p.cooldowns[key].toFixed(1); el.classList.remove('ready'); }
+            else { overlay.style.opacity='0'; el.classList.add('ready'); }
+            }
+        });
+    }
+
+    /********** Character select **********/
+    window.setupCharSelect = function setupCharSelect(onlineState){
+      const grid = document.getElementById('char-grid'); 
+      if(CCA.flow.gameState !== 'CHAR_SELECT') grid.innerHTML='';
+      charKeys.forEach((key, index)=>{
+        let card = grid.querySelector(`.char-card[data-index='${index}']`);
+        if(!card) {
+            card = document.createElement('div');
+            card.className='char-card'; card.dataset.index=index;
+            const char = CHARACTERS[key];
+            card.innerHTML = `
+            <div class="char-portrait" style="background-color:#${new THREE.Color(char.color).getHexString()};"></div>
+            <h3 style="margin:8px 0; font-size: 1em;">${char.name}</h3>
+            <div class="skills-preview" style="font-size:.75em;color:#aaa; text-align: left;">
+                <div>S1: ${char.skills.s1.name}</div>
+                <div>S2: ${char.skills.s2.name}</div>
+                <div>S3: ${char.skills.s3.name}</div>
+            </div>`;
+            card.addEventListener('click', ()=>handleCardClick(index));
+            grid.appendChild(card);
+        }
+      });
+      updateSelectors(onlineState);
+    };
+    function handleCardClick(index){
+      if(CCA.flow.gameState!=='CHAR_SELECT') return;
+
+      if(window.mode.isOnline) {
+          const { code, isHost } = window.mode.onlineState;
+          CCA.online.selectCharacterOnline(code, isHost, charKeys[index]);
+      } else {
+          const localPlayerNum = p1Locked ? 2 : 1;
+          if (localPlayerNum === 1 && !p1Locked) {
+              p1Select = index; p1Locked = true;
+          } else if (localPlayerNum === 2 && !p2Locked) {
+              if(index === p1Select) return;
+              p2Select = index; p2Locked = true;
+          }
+          if (p1Locked && p2Locked) {
+              window.startGame(charKeys[p1Select], charKeys[p2Select]);
+          }
+          updateSelectors(null);
+      }
+    }
+    function updateSelectors(onlineState){
+        const cards = document.querySelectorAll('.char-card');
+        cards.forEach(card => card.classList.remove('locked-by-p1','locked-by-p2'));
+        const status = document.getElementById('lock-in-status');
+        
+        let p1Name = window.loggedInUsers.p1 || 'Player 1';
+        let p2Name = window.loggedInUsers.p2 || 'Player 2';
+        
+        if (window.mode.isOnline && onlineState) {
+            const myTurn = (window.mode.onlineState.isHost && !onlineState.p1CharKey) || (!window.mode.onlineState.isHost && !onlineState.p2CharKey);
+            if (onlineState.p1CharKey) cards[charKeys.indexOf(onlineState.p1CharKey)]?.classList.add('locked-by-p1');
+            if (onlineState.p2CharKey) cards[charKeys.indexOf(onlineState.p2CharKey)]?.classList.add('locked-by-p2');
+
+            if (myTurn) {
+                status.innerHTML = `<span style="color:${window.mode.onlineState.isHost ? '#00ffff' : '#ff00ff'};">Select Your Echo</span>`;
+            } else {
+                status.textContent = 'Waiting for opponent to select...';
+            }
+        } else {
+            if(p1Locked) cards[p1Select]?.classList.add('locked-by-p1');
+            if(p2Locked) cards[p2Select]?.classList.add('locked-by-p2');
+
+            if(!p1Locked) status.innerHTML = `<span style="color:#00ffff;">${p1Name}:</span> Click to select your Echo`;
+            else if(!p2Locked) status.innerHTML = `<span style="color:#ff00ff;">${p2Name}:</span> Click to select your Echo`;
+        }
+    }
+
+    /********** Character Models **********/
+    function createCharacterModel(character, inGame = true) {
+        const group = new THREE.Group();
+        const color = character.color;
+        const mat = new THREE.MeshStandardMaterial({ color: color, metalness: .4, roughness: .6, emissive: 0x000000 }); 
+        const emissiveMat = (c) => new THREE.MeshStandardMaterial({ color: c, metalness: .4, roughness: .6, emissive: c, emissiveIntensity: 0.5 });
+        
+        const castShadow = inGame;
+
+        switch (character.name) {
+            case "Echo Prime":
+            case "Tempest":
+            case "Null":
+            case "Vortex":
+                const body = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 4, 16), mat);
+                body.position.y = 2; body.castShadow = castShadow; group.add(body);
+                const head = new THREE.Mesh(new THREE.IcosahedronGeometry(.7, 0), mat);
+                head.position.y = 3.8; head.castShadow = castShadow; group.add(head);
+                const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.1, 8, 32), emissiveMat(color));
+                ring.position.y = 2.5; ring.rotation.x = Math.PI / 2.5; group.add(ring);
+                break;
+            case "Aegis":
+                const aegisBody = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 3, 12), mat);
+                aegisBody.position.y = 2; aegisBody.castShadow = castShadow; group.add(aegisBody);
+                const aegisHead = new THREE.Mesh(new THREE.OctahedronGeometry(0.8), mat);
+                aegisHead.position.y = 4.2; aegisHead.castShadow = castShadow; group.add(aegisHead);
+                const shield = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 2.5), emissiveMat(0xffffff));
+                shield.position.set(-1.2, 2.5, 0); shield.rotation.y = Math.PI / 6; group.add(shield);
+                break;
+            case "Spectre":
+            case "Mirage":
+            case "Ronin":
+                const agileBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 2.5, 4, 12), mat);
+                agileBody.position.y = 2.2; agileBody.castShadow = castShadow; group.add(agileBody);
+                const agileHead = new THREE.Mesh(new THREE.SphereGeometry(0.6), mat);
+                agileHead.position.y = 4.1; agileHead.castShadow = castShadow; group.add(agileHead);
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 3), emissiveMat(0xffffff));
+                blade.position.set(0.8, 2, 1); blade.rotation.x = -Math.PI / 4; group.add(blade);
+                break;
+            case "Javelin":
+                const javBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3, 1.5), mat);
+                javBody.position.y = 2; javBody.castShadow = castShadow; group.add(javBody);
+                const javHead = new THREE.Mesh(new THREE.SphereGeometry(0.7), mat);
+                javHead.position.y = 4; javHead.castShadow = castShadow; group.add(javHead);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8), emissiveMat(color));
+                barrel.position.set(0, 4, 1); barrel.rotation.x = Math.PI / 2; group.add(barrel);
+                break;
+            case "Glitch":
+            case "Chronomancer":
+            case "Catalyst":
+                const techBody = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 4, 16), mat);
+                techBody.position.y = 2; techBody.castShadow = castShadow; group.add(techBody);
+                const techHead = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
+                techHead.position.y = 3.8; techHead.castShadow = castShadow; group.add(techHead);
+                const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 1.5), emissiveMat(color));
+                backpack.position.set(0, 2.5, -0.8); group.add(backpack);
+                break;
+            case "Colossus":
+            case "Forge":
+                const heavyBody = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 3.5, 8), mat);
+                heavyBody.position.y = 2.2; heavyBody.castShadow = castShadow; group.add(heavyBody);
+                const heavyHead = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), mat);
+                heavyHead.position.y = 4.5; heavyHead.castShadow = castShadow; group.add(heavyHead);
+                const shoulder = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1), mat);
+                shoulder.position.y = 3.5; group.add(shoulder);
+                break;
+            case "Oracle":
+                const oracleBody = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 16), mat);
+                oracleBody.position.y = 2; oracleBody.castShadow = castShadow; group.add(oracleBody);
+                const oracleHead = new THREE.Mesh(new THREE.SphereGeometry(0.7), mat);
+                oracleHead.position.y = 4; oracleHead.castShadow = castShadow; group.add(oracleHead);
+                const halo = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 8, 32), emissiveMat(0xffffff));
+                halo.position.y = 4.5; halo.rotation.x = Math.PI / 2; group.add(halo);
+                break;
+            case "Zephyr":
+                const zephyrBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 3, 4, 12), mat);
+                zephyrBody.position.y = 2.5; zephyrBody.castShadow = castShadow; group.add(zephyrBody);
+                const zephyrHead = new THREE.Mesh(new THREE.SphereGeometry(0.5), mat);
+                zephyrHead.position.y = 4.3; zephyrHead.castShadow = castShadow; group.add(zephyrHead);
+                const wing1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 1), emissiveMat(color));
+                wing1.position.set(0, 3, -0.8); wing1.rotation.y = Math.PI / 4; group.add(wing1);
+                const wing2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 1), emissiveMat(color));
+                wing2.position.set(0, 3, -0.8); wing2.rotation.y = -Math.PI / 4; group.add(wing2);
+                break;
+            default:
+                const body_f = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2, 4, 16), mat);
+                body_f.position.y = 2; body_f.castShadow = castShadow; group.add(body_f);
+                const head_f = new THREE.Mesh(new THREE.IcosahedronGeometry(.7, 0), mat);
+                head_f.position.y = 3.8; head_f.castShadow = castShadow; group.add(head_f);
+                break;
+        }
+
+        return group;
+    }
+
+    /********** GAMEPLAY CLASSES **********/
+    class SpecialObject { constructor(owner, duration){ this.owner=owner; this.duration=duration; this.initialDuration=duration; this.mesh=null; this.collider=null; this.blocksProjectiles=false; } update(delta){ this.duration -= delta; } destroy(){ if(this.mesh) { scene.remove(this.mesh); if(this.mesh.geometry) this.mesh.geometry.dispose(); if(this.mesh.material && typeof this.mesh.material.dispose === 'function') this.mesh.material.dispose(); } } }
+    
+    class ParticleSystem extends SpecialObject {
+        constructor(position, {
+            count = 50, duration = 1, speed = 10, size = 0.1, gravity = 0, emissionShape = 'sphere',
+            startColor = new THREE.Color(0xffffff), endColor = new THREE.Color(0x000000),
+            startSize = 0.1, endSize = 0, direction = null
+        } = {}) {
+            super(null, duration);
+            this.particles = [];
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const material = new THREE.PointsMaterial({
+                map: particleTexture,
+                size: startSize,
+                color: startColor,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+            this.startColor = startColor; this.endColor = endColor;
+            this.startSize = startSize; this.endSize = endSize;
+            this.gravity = new THREE.Vector3(0, gravity, 0);
+
+            for (let i = 0; i < count; i++) {
+                vertices.push(position.x, position.y, position.z);
+                let velocity;
+                if (emissionShape === 'sphere') {
+                    velocity = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(Math.random() * speed);
+                } else if (emissionShape === 'cone' && direction) {
+                    const angle = Math.random() * Math.PI * 0.25;
+                    const s = Math.sin(angle);
+                    const c = Math.cos(angle);
+                    const phi = Math.random() * Math.PI * 2;
+                    velocity = new THREE.Vector3(Math.cos(phi) * s, Math.sin(phi) * s, c)
+                        .applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction))
+                        .normalize()
+                        .multiplyScalar(Math.random() * speed + speed * 0.5);
+                } else {
+                    velocity = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(Math.random() * speed);
+                }
+
+                this.particles.push({
+                    position: position.clone(),
+                    velocity: velocity,
+                    life: Math.random() * duration,
+                    startLife: duration
+                });
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            this.mesh = new THREE.Points(geometry, material);
+            scene.add(this.mesh);
+        }
+
+        update(delta) {
+            super.update(delta);
+             if (!this.mesh || !this.mesh.geometry || !this.mesh.material) return;
+            const positions = this.mesh.geometry.attributes.position;
+            const lifeRatio = Math.max(0, this.duration / this.initialDuration);
+
+            this.mesh.material.color.lerpColors(this.endColor, this.startColor, lifeRatio);
+            this.mesh.material.size = this.endSize + (this.startSize - this.endSize) * lifeRatio;
+            this.mesh.material.opacity = lifeRatio;
+
+            for (let i = 0; i < this.particles.length; i++) {
+                const p = this.particles[i];
+                if (p.life > 0) {
+                    p.life -= delta;
+                    p.velocity.add(this.gravity.clone().multiplyScalar(delta));
+                    p.position.add(p.velocity.clone().multiplyScalar(delta));
+                    positions.setXYZ(i, p.position.x, p.position.y, p.position.z);
+                } else {
+                    positions.setXYZ(i, -9999, -9999, -9999);
+                }
+            }
+            positions.needsUpdate = true;
+        }
+        destroy() {
+             if (this.mesh) {
+                 scene.remove(this.mesh);
+                 if (this.mesh.geometry) this.mesh.geometry.dispose();
+                 if (this.mesh.material && typeof this.mesh.material.dispose === 'function') this.mesh.material.dispose();
+                 this.mesh = null;
+             }
+        }
+    }
+
+    class ExpandingRing extends SpecialObject { constructor(position,color,maxRadius,duration){ super(null,duration); const geo=new THREE.TorusGeometry(maxRadius,.1,8,48), mat=new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,transparent:true}); this.mesh=new THREE.Mesh(geo,mat); this.mesh.position.copy(position); this.mesh.position.y=.5; this.mesh.rotation.x=Math.PI/2; this.mesh.scale.set(.01,.01,.01); scene.add(this.mesh); } update(delta){ super.update(delta); const p=1-(this.duration/this.initialDuration); this.mesh.scale.set(p,p,p); this.mesh.material.opacity=1-p; } }
+    class SpawnEffect extends SpecialObject { constructor(position,color){ super(null,1.5); const ringCount=5; this.rings=[]; for(let i=0;i<ringCount;i++){ const g=new THREE.TorusGeometry(1,.05,8,32), m=new THREE.MeshBasicMaterial({color,transparent:true}), r=new THREE.Mesh(g,m); r.position.copy(position); r.position.y=(i*0.8); r.rotation.x=Math.PI/2; r.scale.set(3,3,3); scene.add(r); this.rings.push(r); } } update(delta){ super.update(delta); const pr=1-(this.duration/this.initialDuration); this.rings.forEach((r,i)=>{ r.position.y=(i*0.8)*(1-pr); r.scale.set(3*(1-pr),3*(1-pr),3*(1-pr)); r.material.opacity=1-pr; }); } destroy(){ this.rings.forEach(r=>{scene.remove(r); if(r.geometry) r.geometry.dispose(); if(r.material) r.material.dispose(); }); } }
+    
+    class PlayerAura extends SpecialObject { 
+        constructor(owner,count,color,speed,size){ 
+            super(owner,Infinity); 
+            if (!owner || !owner.mesh) {
+              console.error("PlayerAura created without valid owner mesh!");
+              this.duration = 0;
+              return;
+            }
+            this.particles=[];
+            const mat=new THREE.PointsMaterial({
+                map: particleTexture,
+                color,size,
+                blending:THREE.AdditiveBlending,
+                transparent:true,
+                depthWrite:false,
+                sizeAttenuation: true
+            });
+            const geo=new THREE.BufferGeometry(); 
+            const verts=[]; 
+            for(let i=0;i<count;i++){ 
+                verts.push(0,0,0); 
+                this.particles.push({
+                    baseAngle: Math.random() * Math.PI * 2,
+                    baseRadius: Math.random() * 1.5 + 1.0,
+                    swirlFrequency: Math.random() * 2 + 1,
+                    swirlAmplitude: Math.random() * 0.4 + 0.2,
+                    yPos: Math.random() * 4,
+                    ySpeed: (Math.random() - 0.5) * speed
+                });
+            } 
+            geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); 
+            this.mesh=new THREE.Points(geo,mat); 
+            if (this.owner && this.owner.mesh) {
+               this.owner.mesh.add(this.mesh); 
+            } else {
+               console.warn("Could not add PlayerAura mesh to owner.");
+            }
+        } 
+        update(delta){ 
+             if (!this.mesh || !this.mesh.geometry) return;
+            const pos=this.mesh.geometry.attributes.position.array; 
+            const t = clock.getElapsedTime();
+            for(let i=0;i<this.particles.length;i++){ 
+                const p=this.particles[i];
+                p.yPos += p.ySpeed * delta;
+                if (p.yPos > 4) p.yPos = 0;
+                if (p.yPos < 0) p.yPos = 4;
+                
+                const angle = p.baseAngle + t * 0.5;
+                const radius = p.baseRadius + Math.sin(t * p.swirlFrequency) * p.swirlAmplitude;
+                
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                pos[i*3] = x;
+                pos[i*3+1] = p.yPos; 
+                pos[i*3+2] = z;
+            } 
+            this.mesh.geometry.attributes.position.needsUpdate=true; 
+        } 
+        destroy(){ if(this.owner?.mesh && this.mesh) this.owner.mesh.remove(this.mesh); if(this.mesh){if(this.mesh.geometry) this.mesh.geometry.dispose(); if(this.mesh.material) this.mesh.material.dispose(); this.mesh = null;} } 
+    }
+
+    class StatusEffectVisual extends SpecialObject { constructor(owner,key,color,count=20,style='swirl'){ super(owner,Infinity); this.statusKey=key; this.style=style; const geo=new THREE.BufferGeometry(), verts=[]; this.particles=[]; for(let i=0;i<count;i++){ verts.push(0,0,0); this.particles.push({position:new THREE.Vector3(),velocity:this.randVel(),life:Math.random()*1.5}); } geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); const mat=new THREE.PointsMaterial({color,size:.2,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}); this.mesh=new THREE.Points(geo,mat); this.mesh.visible=false; scene.add(this.mesh); } randVel(){ switch(this.style){case'drip':return new THREE.Vector3((Math.random()-.5)*.5,-Math.random()*2,(Math.random()-.5)*.5);case'cloud':return new THREE.Vector3((Math.random()-.5)*1.5,(Math.random()-.5)*1.5,(Math.random()-.5)*1.5);default:return new THREE.Vector3((Math.random()-.5)*2,Math.random()*1.5,(Math.random()-.5)*2);}} update(delta){ if(!this.owner||this.owner.isDead||this.owner.hp<=0||this.owner.status[this.statusKey]<=0){this.mesh.visible=false;return;} this.mesh.visible=true; const pos=this.mesh.geometry.attributes.position.array; for(let i=0;i<this.particles.length;i++){ const p=this.particles[i]; p.position.add(p.velocity.clone().multiplyScalar(delta)); p.life-=delta; if(p.life<=0){p.position.set(0,2,0);p.velocity=this.randVel();p.life=Math.random()*1.5;} const w=this.owner.mesh.position.clone().add(p.position); pos[i*3]=w.x; pos[i*3+1]=w.y; pos[i*3+2]=w.z; } this.mesh.geometry.attributes.position.needsUpdate=true; } destroy(){ scene.remove(this.mesh); if(this.mesh){if(this.mesh.geometry) this.mesh.geometry.dispose(); if(this.mesh.material) this.mesh.material.dispose(); this.mesh = null;} } }
+    
+    class Rift extends SpecialObject { constructor(){ super(null,Infinity); this.state='COOLDOWN'; this.timer=5; const g=new THREE.TorusKnotGeometry(1.5,.2,100,16), m=new THREE.MeshBasicMaterial({color:0xff00ff,wireframe:true}); this.mesh=new THREE.Mesh(g,m); this.mesh.visible=false; scene.add(this.mesh); this.light=new THREE.PointLight(0xff00ff,5,10); this.mesh.add(this.light); } update(delta,players){ this.timer-=delta; if(this.state==='COOLDOWN'&&this.timer<=0){this.state='ACTIVE';this.timer=10;const x=(Math.random()-.5)*(arenaSize-10),z=(Math.random()-.5)*(arenaSize-10);this.mesh.position.set(x,2,z);this.mesh.visible=true;}else if(this.state==='ACTIVE'){this.mesh.rotation.y+=delta*2;this.mesh.rotation.x+=delta*.5;if(this.timer<=0){this.state='COOLDOWN';this.timer=15;this.mesh.visible=false;return;} for(const p of players){if(p.mesh.position.distanceTo(this.mesh.position)<3){p.status.riftBuff=8;this.state='COOLDOWN';this.timer=15;this.mesh.visible=false;break;}}}} }
+    
+    class StaticField extends SpecialObject { constructor(owner){ super(owner,5); const g=new THREE.CylinderGeometry(4,4,.5,32,1,true), m=new THREE.MeshBasicMaterial({color:0x00ffff,transparent:true,opacity:.3,side:THREE.DoubleSide}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(owner.mesh.position); this.mesh.position.y=.25; scene.add(this.mesh); this.damageInterval=.5; this.damageTimer=0; this.aura=new PlayerAura(this, 100, 0x00ffff, 3, 0.2); this.aura.mesh.position.y = 0.25; } update(delta,players){ super.update(delta); this.aura.update(delta); this.damageTimer-=delta; if(this.damageTimer<=0){this.damageTimer=this.damageInterval; players.forEach(p=>{if(p!==this.owner&&p.mesh.position.distanceTo(this.mesh.position)<4)p.takeDamage(5);});}} destroy() { this.aura.destroy(); super.destroy(); } }
+    
+    class ShieldEffect extends SpecialObject { constructor(owner,duration,color=0xADD8E6){ super(owner,duration); const g=new THREE.SphereGeometry(2,16,16), m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.4,side:THREE.DoubleSide}); this.mesh=new THREE.Mesh(g,m); scene.add(this.mesh); } update(delta){ super.update(delta); if(this.owner && !this.owner.isDead && this.owner.hp > 0){this.mesh.position.copy(this.owner.mesh.position); this.mesh.position.y=2;}else{this.duration=0;}} }
+    
+    class SlowingMine extends SpecialObject { constructor(owner,position){ super(owner,20); const g=new THREE.CylinderGeometry(.5,.5,.2,16), m=new THREE.MeshStandardMaterial({color:0x32cd32}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(position); this.mesh.position.y=.1; scene.add(this.mesh); this.armed=false; setTimeout(()=>this.armed=true,1000); } update(delta,players){ super.update(delta); if(!this.armed)return; players.forEach(p=>{if(p!==this.owner&&!p.isDead && p.mesh.position.distanceTo(this.mesh.position)<2){p.status.slowed=3;this.duration=0;if(audioReady)sounds.explosion.triggerAttackRelease("A3","4n"); specialObjects.push(new ParticleSystem(this.mesh.position, {count: 50, duration: 0.8, speed: 10, startColor: new THREE.Color(0x32cd32), endColor: new THREE.Color(0x111111)})); }});}}
+    
+    class LaserCore extends SpecialObject { constructor(owner,target){ super(owner,2.5); this.target=target; const g=new THREE.CylinderGeometry(.2,.2,1,8), m=new THREE.MeshBasicMaterial({color:0x32cd32,transparent:true,opacity:.8, blending: THREE.AdditiveBlending}); this.mesh=new THREE.Mesh(g,m); scene.add(this.mesh); this.damageInterval=.2; this.damageTimer=0; } update(delta){ super.update(delta); if(!this.target||!this.owner||this.target.isDead||this.target.hp<=0){this.duration=0;return;} const s=this.owner.mesh.position, e=this.target.mesh.position, d=s.distanceTo(e); this.mesh.scale.y=d; this.mesh.position.copy(s).lerp(e,.5); this.mesh.position.y=2; const up=new THREE.Vector3(0,1,0), axis=new THREE.Vector3().subVectors(e,s).normalize(); this.mesh.quaternion.setFromUnitVectors(up,axis); this.damageTimer-=delta; if(this.damageTimer<=0){this.damageTimer=this.damageInterval; this.target.takeDamage(5); specialObjects.push(new ParticleSystem(this.target.mesh.position.clone().setY(2), {count: 10, duration: 0.2, speed: 2, startColor: new THREE.Color(0x32cd32), endColor: new THREE.Color(0xffffff)})); } } }
+    
+    class WindWall extends SpecialObject { constructor(owner,position,quat){ super(owner,6); const g=new THREE.PlaneGeometry(8,5), m=new THREE.MeshBasicMaterial({color:0x90ee90,transparent:true,opacity:.4,side:THREE.DoubleSide}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(position); this.mesh.position.y=2.5; this.mesh.quaternion.copy(quat); scene.add(this.mesh); const helper=new THREE.BoxHelper(this.mesh); helper.update(); this.collider=new THREE.Box3().setFromObject(helper); this.blocksProjectiles=true; this.aura = new PlayerAura(this, 150, 0x90ee90, 4, 0.1); this.aura.mesh.position.y = 0; } update(delta){ super.update(delta); if (this.aura && this.aura.update) this.aura.update(delta); } destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class StasisField extends SpecialObject { constructor(owner,position){ super(owner,5); const g=new THREE.SphereGeometry(3,16,16), m=new THREE.MeshBasicMaterial({color:0x40e0d0,transparent:true,opacity:.3}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(position); this.mesh.position.y=2; scene.add(this.mesh); this.aura = new PlayerAura(this, 100, 0x40e0d0, 1, 0.2); } update(delta,players){ super.update(delta); if (this.aura && this.aura.update) this.aura.update(delta); players.forEach(p=>{if(p!==this.owner&&!p.isDead && p.mesh.position.distanceTo(this.mesh.position)<3)p.status.rooted=.5;});} destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class Cyclone extends SpecialObject { constructor(owner){ super(owner,4); this.aura = new PlayerAura(this.owner, 200, 0x90ee90, 15, 0.15); } update(delta,players){ super.update(delta); const opp=players.find(p=>p!==this.owner && !p.isDead); if(opp){const dir=new THREE.Vector3().subVectors(this.owner.mesh.position,opp.mesh.position); if(dir.length()<12){dir.normalize(); opp.velocity.add(dir.multiplyScalar(15*delta));}}} destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class Decimate extends SpecialObject { constructor(owner){ super(owner,.5); const g=new THREE.TorusGeometry(3,.2,8,32), m=new THREE.MeshBasicMaterial({color:0xdc143c}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(owner.mesh.position); this.mesh.rotation.x=Math.PI/2; this.mesh.scale.set(.1,.1,.1); scene.add(this.mesh); this.hit=false; } update(delta,players){ super.update(delta); const scale=(1-(this.duration/this.initialDuration))*1.2; this.mesh.scale.set(scale,scale,scale); if(!this.hit){const opp=players.find(p=>p!==this.owner && !p.isDead); if(opp&&opp.mesh.position.distanceTo(this.mesh.position)<(3*scale)){opp.takeDamage(20);this.hit=true;}}}}
+    
+    class MeleeSlash extends SpecialObject { constructor(owner,color){ super(owner,.4); const shape=new THREE.Shape(); shape.moveTo(0,-2.5); shape.absarc(0,0,2.5,-Math.PI/2.5,Math.PI/2.5,false); shape.lineTo(0,-2.5); const g=new THREE.ShapeGeometry(shape), m=new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,transparent:true}); this.mesh=new THREE.Mesh(g,m); this.mesh.position.copy(owner.mesh.position); this.mesh.position.y=2; this.mesh.quaternion.copy(owner.mesh.quaternion); this.mesh.position.add(owner.aimDirection.clone().multiplyScalar(.5)); scene.add(this.mesh); } update(delta){ super.update(delta); if (this.mesh && this.mesh.material) this.mesh.material.opacity=this.duration/this.initialDuration; } }
+    
+    class TectonicSlam extends SpecialObject { constructor(owner){ super(owner,1); specialObjects.push(new ExpandingRing(owner.mesh.position, CHARACTERS['COLOSSUS'].color, 5, 0.5)); specialObjects.push(new ParticleSystem(owner.mesh.position, {count: 100, duration: 1, speed: 8, startColor: new THREE.Color(CHARACTERS['COLOSSUS'].color), endColor: new THREE.Color(0x333333), emissionShape: 'sphere', gravity: -10})); const opp=window.players.find(p=>p!==this.owner && !p.isDead); if(opp&&opp.mesh.position.distanceTo(owner.mesh.position)<5){opp.takeDamage(15);opp.status.slowed=2;} if(audioReady)sounds.explosion.triggerAttackRelease("C2","2n"); } update(delta){ super.update(delta); } }
+    
+    class SentryTurret extends SpecialObject { constructor(owner, position){ super(owner,10); const base=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,1,8),new THREE.MeshStandardMaterial({color:owner.mesh.children[0].material.color.clone().multiplyScalar(.7)})); const head=new THREE.Mesh(new THREE.SphereGeometry(.4,8,8),new THREE.MeshStandardMaterial({color:owner.mesh.children[0].material.color})); head.position.y=.7; this.mesh=new THREE.Group(); this.mesh.add(base); this.mesh.add(head); this.mesh.position.copy(position); this.mesh.position.y=.5; scene.add(this.mesh); this.fireRate=.75; this.fireTimer=0; this.head=head; } update(delta,players){ super.update(delta); this.fireTimer-=delta; const opp=players.find(p=>p!==this.owner && !p.isDead && p.hp>0 && p.status.cloaked <= 0); if(!opp)return; const target=opp.mesh.position.clone(); this.head.lookAt(target); if(this.mesh.position.distanceTo(target) < 15 && this.fireTimer<=0){this.fireTimer=this.fireRate; const start=new THREE.Vector3(); this.head.getWorldPosition(start); const dir=new THREE.Vector3().subVectors(opp.mesh.position,start).normalize(); const proj=new Projectile(this.owner,dir,5,25,{}); proj.mesh.position.copy(start); projectiles.push(proj);}} }
+    
+    class StatusAura extends SpecialObject { constructor(owner,duration,color){ super(owner,duration); const g=new THREE.TorusGeometry(1.5,.05,8,48), m=new THREE.MeshBasicMaterial({color,transparent:true}); this.mesh=new THREE.Mesh(g,m); this.mesh.rotation.x=Math.PI/2; scene.add(this.mesh); } update(delta){ super.update(delta); if(this.owner&&!this.owner.isDead&&this.owner.hp>0){this.mesh.position.copy(this.owner.mesh.position); this.mesh.position.y=.1; this.mesh.material.opacity=this.duration/this.initialDuration;}else this.duration=0;}}
+    
+    class EyeOfTheStorm extends SpecialObject { constructor(owner){ super(owner,6); this.damageInterval=.5; this.damageTimer=0; this.pullRadius=15; this.damageRadius=6; const g=new THREE.TorusGeometry(this.damageRadius,.2,16,100), m=new THREE.MeshBasicMaterial({color:0x1e90ff,blending:THREE.AdditiveBlending,transparent:true}); this.mesh=new THREE.Mesh(g,m); this.mesh.rotation.x=Math.PI/2; scene.add(this.mesh); this.aura = new PlayerAura(owner, 200, 0x1e90ff, 10, 0.2); } update(delta,players){ super.update(delta); if(!this.owner||this.owner.isDead||this.owner.hp<=0){this.duration=0;return;} this.mesh.position.copy(this.owner.mesh.position); this.mesh.position.y=.2; this.mesh.rotation.z+=delta*3; this.mesh.material.opacity=.5+Math.sin(this.duration*5)*.25; const opp=players.find(p=>p!==this.owner && !p.isDead); if(opp){const dir=new THREE.Vector3().subVectors(this.owner.mesh.position,opp.mesh.position); const dist=dir.length(); if(dist<this.pullRadius){dir.normalize(); opp.velocity.add(dir.multiplyScalar(35*delta*(1-dist/this.pullRadius)));}} this.damageTimer-=delta; if(this.damageTimer<=0){this.damageTimer=this.damageInterval; players.forEach(p=>{if(!p.isDead && p.mesh.position.distanceTo(this.mesh.position)<this.damageRadius){if(p!==this.owner)p.takeDamage(8,true);}});}} destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class Singularity extends SpecialObject { constructor(owner, position) { super(owner, 5); const g = new THREE.SphereGeometry(2, 16, 16), m = new THREE.MeshBasicMaterial({ color: 0x6a0dad, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending }); this.mesh = new THREE.Mesh(g, m); this.mesh.position.copy(position); scene.add(this.mesh); this.aura = new PlayerAura(this, 100, 0x6a0dad, 5, 0.1); } update(delta, players) { super.update(delta); if (this.aura && this.aura.update) this.aura.update(delta); players.forEach(p => { if (p !== this.owner && !p.isDead) { const dir = new THREE.Vector3().subVectors(this.mesh.position, p.mesh.position); if (dir.length() < 10) { p.velocity.add(dir.normalize().multiplyScalar(20 * delta)); } } }); } destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class Doppelganger extends SpecialObject {
+        constructor(owner) {
+            super(owner, 8);
+            this.mesh = createCharacterModel(CHARACTERS['MIRAGE'], false);
+            this.mesh.position.copy(owner.mesh.position).add(new THREE.Vector3(Math.random() * 4 - 2, 0, Math.random() * 4 - 2));
+            scene.add(this.mesh);
+            this.mesh.traverse(c => { if (c.material) {c.material.transparent = true; c.material.opacity = 0.5;} });
+            this.attackTimer = 1.5;
+            this.speed = CHARACTERS['MIRAGE'].speed * 0.8;
+            this.attackRange = CHARACTERS['MIRAGE'].attackType === 'MELEE' ? 4.0 : 0;
+        }
+        update(delta, players) {
+            super.update(delta);
+            this.attackTimer -= delta;
+            const opp = players.find(p => p !== this.owner && !p.isDead);
+            if (!opp) return;
+
+            const direction = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position);
+             if (direction.lengthSq() > 0.001) {
+                this.mesh.lookAt(opp.mesh.position);
+            }
+
+            if (direction.length() > this.attackRange * 0.8) {
+                direction.normalize();
+                this.mesh.position.add(direction.multiplyScalar(this.speed * delta));
+            }
+
+            if (this.attackTimer <= 0 && this.mesh.position.distanceTo(opp.mesh.position) < this.attackRange) {
+                this.attackTimer = 1.5;
+                opp.takeDamage(5);
+                 const mockOwnerForSlash = {
+                     mesh: this.mesh,
+                     aimDirection: new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize(),
+                     mesh: {
+                         position: this.mesh.position.clone(),
+                         quaternion: this.mesh.quaternion.clone(),
+                         children: [{ material: { color: this.mesh.children[0].material.color.clone() } }]
+                     }
+                 };
+                specialObjects.push(new MeleeSlash(mockOwnerForSlash, mockOwnerForSlash.mesh.children[0].material.color));
+            }
+        }
+        destroy() {
+             if (this.mesh) {
+                 scene.remove(this.mesh);
+                 this.mesh.traverse(child => {
+                     if (child.geometry) child.geometry.dispose();
+                     if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                     }
+                 });
+                 this.mesh = null;
+             }
+             super.destroy();
+        }
+    }
+    
+    class BarrierWall extends SpecialObject { constructor(owner, position, quaternion) { super(owner, 8); const g = new THREE.BoxGeometry(10, 5, 0.5), m = new THREE.MeshStandardMaterial({color: CHARACTERS['FORGE'].color, transparent: true, opacity: 0.6}); this.mesh = new THREE.Mesh(g,m); this.mesh.position.copy(position); this.mesh.quaternion.copy(quaternion); this.mesh.position.y=2.5; scene.add(this.mesh); this.collider = new THREE.Box3().setFromObject(this.mesh); this.blocksProjectiles = true; } update(delta) { super.update(delta); }}
+    
+    class AdrenalHaze extends SpecialObject { constructor(owner) { super(owner, 6); const g = new THREE.SphereGeometry(8, 32, 32), m = new THREE.MeshBasicMaterial({color: CHARACTERS['CATALYST'].color, transparent: true, opacity: 0.2}); this.mesh = new THREE.Mesh(g,m); this.mesh.position.copy(owner.mesh.position); scene.add(this.mesh); this.tickTimer = 1; this.aura = new PlayerAura(this, 150, 0x00ff7f, 2, 0.1); } update(delta, players) { super.update(delta); if (this.aura && this.aura.update) this.aura.update(delta); this.tickTimer -= delta; if(this.tickTimer <= 0) { this.tickTimer = 1; players.forEach(p => { if(!p.isDead && p.mesh.position.distanceTo(this.mesh.position) < 8) { if(p === this.owner) p.speed *= 1.2; else p.status.slowed = 1.1; }});} } destroy() { if (this.aura) this.aura.destroy(); super.destroy(); if(this.owner) this.owner.speed = CHARACTERS[this.owner.characterKey].speed; } }
+    
+    class BladeFury extends SpecialObject { constructor(owner) { super(owner, 3); this.slashes = []; this.slashTimer = 0.2; this.color = CHARACTERS['RONIN'].color; this.aura = new PlayerAura(owner, 100, 0xff4500, 20, 0.1); } update(delta, players) { super.update(delta); this.slashTimer -= delta; if(this.slashTimer <= 0) { this.slashTimer = 0.2; const slash = new MeleeSlash(this.owner, this.color); specialObjects.push(slash); const opp = players.find(p => p !== this.owner && !p.isDead); if (opp && opp.mesh.position.distanceTo(this.owner.mesh.position) < this.owner.attackRange * 1.5) { opp.takeDamage(8); } } } destroy() { if (this.aura) this.aura.destroy(); super.destroy(); } }
+    
+    class Projectile {
+      constructor(owner, direction, damage, speed, { size=0.3, life=3, effects=null, piercing=false }={}){
+        this.owner=owner; 
+        this.damage = (owner && owner.status?.riftBuff > 0) ? damage * 1.5 : damage; 
+        this.speed=speed; this.direction=direction; this.life=life; this.effects=effects; this.piercing=piercing; this.hitPlayers=new Set(); this.gracePeriod=.1;
+        
+        let ownerColor = new THREE.Color(0xffffff);
+        if (owner instanceof Player && owner.mesh && owner.mesh.children[0] && owner.mesh.children[0].material) {
+            ownerColor = owner.mesh.children[0].material.color;
+        } else if (owner.owner && owner.owner.mesh && owner.owner.mesh.children[0] && owner.owner.mesh.children[0].material) {
+             ownerColor = owner.owner.mesh.children[0].material.color;
+        }
+        
+        const g=new THREE.SphereGeometry(size,8,8), m=new THREE.MeshBasicMaterial({ color: ownerColor, blending: THREE.AdditiveBlending }); 
+        this.mesh=new THREE.Mesh(g,m);
+        if (owner && owner.mesh) {
+            this.mesh.position.copy(owner.mesh.position).add(new THREE.Vector3(0,2,0)); 
+        } else {
+            console.warn("Projectile created without valid owner mesh position!");
+            this.mesh.position.set(0, 2, 0);
+        }
+        const light=new THREE.PointLight(this.mesh.material.color,2,5); this.mesh.add(light); scene.add(this.mesh);
+        
+        specialObjects.push(new ParticleSystem(this.mesh.position, {
+            count: 20, duration: 0.3, speed: 3, startColor: new THREE.Color(0xffffff), endColor: ownerColor,
+            startSize: 0.2, endSize: 0, emissionShape: 'cone', direction: direction
+        }));
+        if(audioReady) sounds.shoot.triggerAttackRelease("C5","16n");
+      }
+      update(delta){ this.life-=delta; this.gracePeriod-=delta; if(this.life<=0){ this.destroy(); return; }
+        this.mesh.position.add(this.direction.clone().multiplyScalar(this.speed*delta));
+        if(this.gracePeriod>0) return;
+        const p2d = new THREE.Vector2(this.mesh.position.x, this.mesh.position.z);
+        for(const p of window.players){ if(p!==this.owner && !p.isDead && !this.hitPlayers.has(p)){ const s2d=new THREE.Vector2(p.mesh.position.x,p.mesh.position.z); if(p2d.distanceTo(s2d)<1.5){ p.takeDamage(this.damage); if(this.effects) Object.assign(p.status, this.effects); if(!this.piercing){ this.destroy(); return; } this.hitPlayers.add(p); } } }
+        for(const obs of obstacles){ if(obs.containsPoint?.(this.mesh.position)){ this.destroy(); return; } }
+        for(const o of specialObjects){ if(o.blocksProjectiles && o.owner!==this.owner && o.collider && o.collider.containsPoint(this.mesh.position)){ this.destroy(); return; } }
+      }
+      destroy(){ 
+        if (this.mesh) {
+            specialObjects.push(new ParticleSystem(this.mesh.position, {count: 20, duration: 0.5, speed: 5, startColor: new THREE.Color(this.mesh.material.color), endColor: new THREE.Color(0x000000)})); 
+            scene.remove(this.mesh); 
+            if (this.mesh.geometry) this.mesh.geometry.dispose();
+            if (this.mesh.material) this.mesh.material.dispose();
+            this.mesh = null;
+        }
+        const i=projectiles.indexOf(this); if(i>-1) projectiles.splice(i,1); 
+      }
+    }
+
+    class Player {
+      constructor(playerNum, characterKey){
+        this.playerNum=playerNum; this.characterKey=characterKey; const d=CHARACTERS[characterKey];
+        this.mesh=createCharacterModel(d);
+        this.mesh.position.set(playerNum===1?-15:15,0,0); scene.add(this.mesh);
+        this.collider=new THREE.Box3().setFromObject(this.mesh);
+        this.maxHp=d.hp; this.hp=d.hp; this.maxEnergy=100; this.energy=100; this.speed=d.speed; this.skills=d.skills; this.attackType=d.attackType; this.attackRange=this.attackType==='MELEE'?4.0:0;
+        this.status={ slowed:0, rooted:0, silenced:0, shielded:0, spellShield:0, unstoppable:0, cloaked:0, empowered:0, venom:0, corruption:0, feedbackLoop:0, isCharging:0, riftBuff:0, nextAttackVenom:false, targetingArray:0, parry:0, siege:0 };
+        this.statusMeshes={}; this.riftLight=null; this.cooldowns={ basicAttack:0, s1:0, s2:0, s3:0 }; this.velocity=new THREE.Vector3(); this.aimDirection=new THREE.Vector3(); this.rewindPositions=[]; this.rewindTimer=0;
+        this.isDead = false;
+        
+        this.networkTargetPosition = this.mesh.position.clone();
+
+        this.aura=null;
+        switch(characterKey){
+          case 'ECHO_PRIME': case 'TEMPEST': this.aura=new PlayerAura(this,50,d.color, 2, .15); break;
+          case 'AEGIS': case 'COLOSSUS': case 'FORGE': this.aura=new PlayerAura(this,40,d.color,1, .2); break;
+          case 'SPECTRE': case 'NULL': case 'MIRAGE': this.aura=new PlayerAura(this,60,d.color,3,.1); break;
+          case 'JAVELIN': this.aura=new PlayerAura(this,30,d.color,4,.1); break;
+          case 'GLITCH': case 'CHRONOMANCER': case 'VORTEX': this.aura=new PlayerAura(this,40,d.color, 1.5,.15); break;
+          case 'ORACLE': case 'CATALYST': this.aura=new PlayerAura(this,70,d.color,.8,.18); break;
+          case 'ZEPHYR': case 'RONIN': this.aura=new PlayerAura(this,60,d.color,5,.12); break;
+        }
+        if(this.aura) specialObjects.push(this.aura);
+
+        this.statusVisuals = {
+          empowered: new StatusEffectVisual(this,'empowered',0xffff00),
+          venom:     new StatusEffectVisual(this,'venom',0x00ff00,30,'drip'),
+          corruption:new StatusEffectVisual(this,'corruption',0x800080,40,'cloud')
+        };
+        specialObjects.push(...Object.values(this.statusVisuals));
+      }
+
+      update(delta, opponent){
+        if (this.isDead) return;
+
+        for(const k in this.cooldowns) this.cooldowns[k] = Math.max(0,this.cooldowns[k]-delta);
+        for(const k in this.status) if(typeof this.status[k]==='number') this.status[k]=Math.max(0,this.status[k]-delta);
+        if(this.status.venom>0) this.takeDamage(10*delta,true);
+        if(this.status.feedbackLoop>0 && opponent.energy<opponent.maxEnergy) opponent.takeDamage(15*delta,true);
+        const riftBonus = window.mode.current.rift ? 15 : 0;
+        this.energy = Math.min(this.maxEnergy, this.energy + (5 + riftBonus + (this.status.riftBuff>0 ? 10 : 0))*delta);
+        
+        const isMyPlayer = !window.mode.isOnline || ((window.mode.onlineState.isHost && this.playerNum === 1) || (!window.mode.onlineState.isHost && this.playerNum === 2));
+
+        if (isMyPlayer) {
+            const move = new THREE.Vector3(0, 0, 0);
+            if (this.status.rooted <= 0 && this.status.siege <= 0) {
+                const c = window.mode.isOnline ? controls.p1 : controls[`p${this.playerNum}`];
+                if (keys[c.forward]) move.z -= 1;
+                if (keys[c.backward]) move.z += 1;
+                if (keys[c.left]) move.x -= 1;
+                if (keys[c.right]) move.x += 1;
+            }
+            if(move.lengthSq()>0){ 
+                move.normalize(); 
+                let sp=this.speed*(this.status.riftBuff>0?1.5:1); 
+                if(this.status.slowed>0 && this.status.unstoppable<=0) sp*=.5; 
+                this.velocity.add(move.multiplyScalar(sp*delta*20)); 
+            }
+        }
+
+        if(this.status.isCharging>0){ let cs=this.characterKey==='AEGIS'?40:35; this.velocity.copy(this.aimDirection).multiplyScalar(cs); }
+
+        if (isMyPlayer) {
+            this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
+        } else {
+            this.mesh.position.lerp(this.networkTargetPosition, 0.25);
+            this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
+        }
+        
+        this.velocity.multiplyScalar(1-15*delta);
+        this.mesh.position.x = Math.max(-arenaSize/2+1, Math.min(arenaSize/2-1, this.mesh.position.x));
+        this.mesh.position.z = Math.max(-arenaSize/2+1, Math.min(arenaSize/2-1, this.mesh.position.z));
+        
+        if (opponent && !opponent.isDead) {
+            this.aimDirection.subVectors(opponent.mesh.position, this.mesh.position).normalize(); 
+            const lookAt=this.mesh.position.clone().add(this.aimDirection); 
+            lookAt.y=this.mesh.position.y; 
+            this.mesh.lookAt(lookAt);
+        }
+        
+        this.collider.setFromObject(this.mesh);
+
+        obstacles.forEach(obs=>{ if(this.collider.intersectsBox(obs)) this.resolveCollision(obs); });
+        if(opponent && !opponent.isDead && this.collider.intersectsBox(opponent.collider)){
+          if(this.status.isCharging>0){ opponent.takeDamage(25); const kb=this.aimDirection.clone().multiplyScalar(20); opponent.velocity.add(kb); this.status.isCharging=0; }
+          this.resolveCollision(opponent.collider, .5); opponent.resolveCollision(this.collider, .5);
+        }
+
+        this.rewindTimer += delta;
+        if(this.rewindTimer > .25){ this.rewindTimer=0; this.rewindPositions.push({ pos:this.mesh.position.clone(), hp:this.hp, energy:this.energy }); if(this.rewindPositions.length>20) this.rewindPositions.shift(); }
+
+        this.updateStatusVisuals();
+        this.mesh.traverse(child=>{ if(child.material){ child.material.transparent = this.status.cloaked>0; child.material.opacity = this.status.cloaked>0 ? .3 : 1; } });
+      }
+
+      updateStatusVisuals(){
+        if(this.isDead) return;
+
+        if(this.status.rooted>0 && !this.statusMeshes.root){ const g=new THREE.TorusGeometry(1.2,.05,8,32), m=new THREE.MeshBasicMaterial({color:0xff0000}); const r=new THREE.Mesh(g,m); r.rotation.x=Math.PI/2; scene.add(r); this.statusMeshes.root=r; }
+        else if(this.status.rooted<=0 && this.statusMeshes.root){ scene.remove(this.statusMeshes.root); this.statusMeshes.root.geometry.dispose(); this.statusMeshes.root.material.dispose(); this.statusMeshes.root=null; }
+        if(this.statusMeshes.root){ this.statusMeshes.root.position.copy(this.mesh.position); this.statusMeshes.root.position.y=.1; }
+
+        if(this.status.slowed>0 && !this.statusMeshes.slow){ const g=new THREE.TorusGeometry(1.3,.05,8,32), m=new THREE.MeshBasicMaterial({color:0x0000ff}); const r=new THREE.Mesh(g,m); r.rotation.x=Math.PI/2; scene.add(r); this.statusMeshes.slow=r; }
+        else if(this.status.slowed<=0 && this.statusMeshes.slow){ scene.remove(this.statusMeshes.slow); this.statusMeshes.slow.geometry.dispose(); this.statusMeshes.slow.material.dispose(); this.statusMeshes.slow=null; }
+        if(this.statusMeshes.slow){ this.statusMeshes.slow.position.copy(this.mesh.position); this.statusMeshes.slow.position.y=.15; }
+
+        if(this.status.riftBuff>0 && !this.riftLight){ this.riftLight=new THREE.PointLight(0xff00ff,5,5); this.mesh.add(this.riftLight); }
+        else if(this.status.riftBuff<=0 && this.riftLight){ this.mesh.remove(this.riftLight); this.riftLight=null; }
+      }
+
+      resolveCollision(otherBox, pushFactor=1.0){
+        if (this.isDead) return;
+        if(this.status.isCharging>0 && otherBox.isPylon){ this.status.isCharging=0; this.status.rooted=1.5; this.velocity.set(0,0,0); }
+        const cP=new THREE.Vector3(); this.collider.getCenter(cP);
+        const cO=new THREE.Vector3(); otherBox.getCenter(cO);
+        const sP=new THREE.Vector3(); this.collider.getSize(sP);
+        const sO=new THREE.Vector3(); otherBox.getSize(sO);
+        const dx=cO.x-cP.x, penX=(sP.x/2+sO.x/2)-Math.abs(dx);
+        const dz=cO.z-cP.z, penZ=(sP.z/2+sO.z/2)-Math.abs(dz);
+        if(penX>0 && penZ>0){ if(penX<penZ) this.mesh.position.x -= penX*Math.sign(dx)*pushFactor; else this.mesh.position.z -= penZ*Math.sign(dz)*pushFactor; this.collider.setFromObject(this.mesh); }
+      }
+
+      takeDamage(amount, isDoT=false){
+        if (this.isDead) return;
+        if(this.status.shielded>0 && !isDoT) return;
+        if(this.status.spellShield>0 && !isDoT){ this.status.spellShield=0; return; }
+        if(this.status.parry>0 && !isDoT) {
+            this.status.parry = 0;
+            const opponent = window.players.find(p=>p!==this);
+            if(opponent) opponent.status.rooted = 1.5;
+            return;
+        }
+
+        let dmg=amount; if(this.status.corruption>0) dmg*=1.3; if(this.status.empowered>0) dmg*=.7;
+        this.hp = Math.max(0, this.hp - dmg);
+        
+        if (window.mode.isOnline && !isDoT) {
+            const isMyPlayer = (window.mode.onlineState.isHost && this.playerNum === 1) || (!window.mode.onlineState.isHost && this.playerNum === 2);
+            if (!isMyPlayer) { 
+                const { code } = window.mode.onlineState;
+                const path = this.playerNum === 1 ? 'state.p1.hp' : 'state.p2.hp';
+                const { updateDoc, doc, db } = CCA.firebase;
+                updateDoc(doc(db, 'rooms', code), { [path]: this.hp }).catch(console.error);
+            }
+        }
+        
+        if(!isDoT){ 
+            specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {
+                count: 30, duration: 0.6, speed: 8, startColor: new THREE.Color(0xff0000), endColor: new THREE.Color(0x440000), startSize: 0.2, endSize: 0
+            })); 
+            if(audioReady) sounds.hit.triggerAttackRelease("C2","8n");
+
+            const originalEmissives = new Map();
+
+            this.mesh.traverse(c => {
+                if (c.isMesh && c.material && c.material.emissive) {
+                    originalEmissives.set(c.uuid, c.material.emissive.getHex());
+                    c.material.emissive.setHex(0xffffff);
+                }
+            });
+
+            setTimeout(() => {
+                if (this.mesh) {
+                    this.mesh.traverse(c => {
+                        if (c.isMesh && c.material && c.material.emissive && originalEmissives.has(c.uuid)) {
+                           c.material.emissive.setHex(originalEmissives.get(c.uuid));
+                        } else if (c.isMesh && c.material && c.material.emissive) {
+                           c.material.emissive.setHex(0x000000);
+                        }
+                    });
+                }
+            }, 150);
+        }
+        if(this.hp<=0) this.die();
+      }
+      
+      die(){ 
+        if (this.isDead) return;
+        this.isDead = true;
+        this.hp = 0;
+
+        specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {
+            count: 200, duration: 1.5, speed: 12, startColor: new THREE.Color(this.mesh.children[0].material.color), endColor: new THREE.Color(0x000000), startSize: 0.25, endSize: 0
+        })); 
+        if(audioReady) sounds.death.triggerAttackRelease("8n"); 
+        
+        this.mesh.visible = false;
+        
+        Object.values(this.statusMeshes).forEach(m=>{ if(m) scene.remove(m); });
+        this.statusMeshes = {};
+        if (this.riftLight) this.mesh.remove(this.riftLight);
+        this.riftLight = null;
+
+        if (this.aura) {
+            this.aura.destroy();
+            const auraIndex = specialObjects.indexOf(this.aura);
+            if(auraIndex > -1) specialObjects.splice(auraIndex, 1);
+            this.aura = null;
+        }
+
+        endGame(this.playerNum===1?2:1); 
+      }
+      
+       destroy(){ 
+          scene.remove(this.mesh); 
+          this.mesh.traverse(child => {
+             if (child.geometry) child.geometry.dispose();
+             if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(mat => mat.dispose());
+                } else {
+                     if (typeof child.material.dispose === 'function') child.material.dispose();
+                }
+             }
+          });
+          
+          Object.values(this.statusMeshes).forEach(m=>{ if(m) { scene.remove(m); if(m.geometry) m.geometry.dispose(); if(m.material && typeof m.material.dispose === 'function') m.material.dispose();} }); 
+          
+          if (this.aura) {
+             this.aura.destroy();
+             const auraIndex = specialObjects.indexOf(this.aura);
+             if (auraIndex > -1) specialObjects.splice(auraIndex, 1);
+             this.aura = null;
+          }
+          
+          for(let i=specialObjects.length-1;i>=0;i--){ 
+             if(specialObjects[i].owner===this){ 
+                if (typeof specialObjects[i].destroy === 'function') specialObjects[i].destroy(); 
+                specialObjects.splice(i,1); 
+             } 
+          } 
+       }
+
+      useSkill(skillKey) {
+        if (this.isDead || this.cooldowns[skillKey] > 0 || this.status.silenced > 0) return;
+
+        const skill = (skillKey === 'basicAttack') ? { cost: 0, cd: this.status.siege > 0 ? 1.5 : 0.5 } : this.skills[skillKey];
+        if (!skill || this.energy < skill.cost) return;
+
+        if (window.mode.isOnline) {
+            window.pushSkillEvent(skillKey);
+        }
+
+        this.executeSkill(skillKey);
+      }
+
+      useSkillRemote(skillKey) {
+        if (this.isDead) return;
+        console.log(`Executing remote skill: ${skillKey} for player ${this.playerNum}`);
+        this.executeSkill(skillKey, true);
+      }
+
+      executeSkill(skillKey, isRemote = false) {
+        if (this.isDead) return;
+
+        const fireDir = this.aimDirection.clone();
+        const opponent = window.players.find(p => p !== this);
+
+        if (!isRemote) {
+            if (skillKey === 'basicAttack') {
+                this.cooldowns.basicAttack = this.status.siege > 0 ? 1.5 : 0.5;
+            } else {
+                const skill = this.skills[skillKey];
+                if (!skill) return;
+                this.cooldowns[skillKey] = skill.cd;
+                this.energy -= skill.cost;
+            }
+        }
+
+        switch (skillKey) {
+            case 'basicAttack':
+                let effects = null; if(this.status.nextAttackVenom){ effects = { venom:3 }; this.status.nextAttackVenom=false; }
+                if(this.attackType==='RANGED'){
+                    const isPiercing = this.status.targetingArray > 0;
+                    const damage = this.status.siege > 0 ? 25 : 10;
+                    projectiles.push(new Projectile(this, fireDir, damage, 20, { effects, piercing:isPiercing }));
+                } else {
+                    if (opponent && !opponent.isDead && opponent.mesh.position.distanceTo(this.mesh.position) < this.attackRange) {
+                        const vectorToOpponent = new THREE.Vector3().subVectors(opponent.mesh.position, this.mesh.position).normalize();
+                        const forwardAngle = this.aimDirection.dot(vectorToOpponent);
+                        if (forwardAngle > 0.5) { 
+                            const damage = this.status.siege > 0 ? 25 : 10;
+                            opponent.takeDamage(damage);
+                            if(effects) Object.assign(opponent.status, effects);
+                        }
+                    }
+                    specialObjects.push(new MeleeSlash(this, this.mesh.children[0].material.color));
+                }
+                return;
+        }
+
+        const skill = this.skills[skillKey];
+        if (!skill) return;
+
+        console.log(`Executing ${skill.name} (${skillKey}) for player ${this.playerNum}`);
+
+        switch (skill.name) {
+          case "Power Shot": projectiles.push(new Projectile(this, fireDir, 25, 25, {size: 0.4})); break;
+          case "Phase Shift": this.velocity.add(this.aimDirection.clone().multiplyScalar(20)); specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 50, duration: 0.5, speed: 5, startColor: new THREE.Color(this.mesh.children[0].material.color)})); if(audioReady) sounds.teleport.triggerAttackRelease("C5","8n"); break;
+          case "Static Field": specialObjects.push(new StaticField(this)); break;
+          case "Aegis Charge": this.status.isCharging=.5; if(audioReady) sounds.charge.triggerAttackRelease("C3", "4n"); specialObjects.push(new PlayerAura(this, 100, 0xffffff, 10, 0.1)); break;
+          case "Energy Shield": this.status.shielded=5; specialObjects.push(new ShieldEffect(this,5,0xADD8E6)); break;
+          case "Overload": specialObjects.push(new ExpandingRing(this.mesh.position, this.mesh.children[0].material.color, 8, .5)); specialObjects.push(new ParticleSystem(this.mesh.position, {count: 200, duration: 1.2, speed: 15, startColor: new THREE.Color(this.mesh.children[0].material.color), endColor: new THREE.Color(0xffffff)})); if(opponent && !opponent.isDead && opponent.mesh.position.distanceTo(this.mesh.position)<8){ opponent.takeDamage(40); } if(audioReady) sounds.explosion.triggerAttackRelease("G2","2n"); break;
+          case "Venom Blade": this.status.nextAttackVenom=true; specialObjects.push(new StatusAura(this, 3, 0x00ff00)); break;
+          case "Blink": const bp=this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(8)); specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 50, duration: 0.5, speed: 5, startColor: new THREE.Color(this.mesh.children[0].material.color)})); this.mesh.position.copy(bp); specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 50, duration: 0.5, speed: 5, startColor: new THREE.Color(this.mesh.children[0].material.color)})); if(audioReady) sounds.teleport.triggerAttackRelease("C6","16n"); break;
+          case "Cloak": this.status.cloaked=5; break;
+          case "Slowing Mine": specialObjects.push(new SlowingMine(this, this.mesh.position.clone())); break;
+          case "Laser Core": if(opponent && !opponent.isDead) specialObjects.push(new LaserCore(this, opponent)); if(audioReady) sounds.laser.triggerAttackRelease("C4","1n"); break;
+          case "Corruption": projectiles.push(new Projectile(this, fireDir, 5, 20, { effects:{ corruption:5 } })); break;
+          case "Rewind": if(this.rewindPositions.length>0){ const st=this.rewindPositions[0]; specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 80, duration: 0.7, speed: 5, startColor: new THREE.Color(this.mesh.children[0].material.color)})); this.mesh.position.copy(st.pos); if(!isRemote) { this.hp=st.hp; this.energy=st.energy; } specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 80, duration: 0.7, speed: 5, startColor: new THREE.Color(0xffffff)})); } if(audioReady) sounds.teleport.triggerAttackRelease("A5","8n"); break;
+          case "Swap": if(opponent && !opponent.isDead) { const my=this.mesh.position.clone(); specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 80, duration: 0.7, speed: 8, startColor: new THREE.Color(this.mesh.children[0].material.color)})); specialObjects.push(new ParticleSystem(opponent.mesh.position.clone().setY(2), {count: 80, duration: 0.7, speed: 8, startColor: new THREE.Color(opponent.mesh.children[0].material.color)})); this.mesh.position.copy(opponent.mesh.position); opponent.mesh.position.copy(my); } if(audioReady) sounds.teleport.triggerAttackRelease("F4","8n"); break;
+          case "Decimate": specialObjects.push(new Decimate(this)); break;
+          case "Tectonic Slam": specialObjects.push(new TectonicSlam(this)); break;
+          case "Unstoppable Force": this.status.unstoppable=4; this.status.isCharging=.5; specialObjects.push(new PlayerAura(this, 150, 0xff0000, 15, 0.2)); if(audioReady) sounds.charge.triggerAttackRelease("A2", "4n"); break;
+          case "Temporal Anomaly": projectiles.push(new Projectile(this, fireDir, 10, 15, { effects:{ slowed:3 } })); break;
+          case "Stasis Field": specialObjects.push(new StasisField(this, this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(10)))); break;
+          case "Chrono Prison": if(opponent && !opponent.isDead){ opponent.status.rooted=3; specialObjects.push(new ShieldEffect(opponent,3,0x40e0d0)); } break;
+          case "Empower": this.status.empowered=6; specialObjects.push(new StatusAura(this, 6, 0xffff00)); break;
+          case "Sentry Turret": specialObjects.push(new SentryTurret(this, this.mesh.position.clone())); break;
+          case "Bastion Protocol": this.status.shielded=10; specialObjects.push(new ShieldEffect(this,10,0xffffff)); break;
+          case "Tailwind": this.velocity.add(this.aimDirection.clone().multiplyScalar(-20)); specialObjects.push(new ParticleSystem(this.mesh.position.clone().setY(2), {count: 50, duration: 0.5, speed: 5, startColor: new THREE.Color(this.mesh.children[0].material.color)})); if(audioReady) sounds.teleport.triggerAttackRelease("C5","8n"); break;
+          case "Wind Wall": const wp=this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(3)); specialObjects.push(new WindWall(this, wp, this.mesh.quaternion)); break;
+          case "Cyclone": specialObjects.push(new Cyclone(this)); break;
+          case "Feedback Loop": projectiles.push(new Projectile(this, fireDir, 10, 20, { effects:{ feedbackLoop:5 } })); break;
+          case "Silence": projectiles.push(new Projectile(this, fireDir, 10, 20, { effects:{ silenced:3 } })); break;
+          case "Spell Shield": this.status.spellShield=10; specialObjects.push(new ShieldEffect(this,10,0xa020f0)); break;
+          case "Targeting Array": this.status.targetingArray=5; specialObjects.push(new StatusAura(this,5, this.mesh.children[0].material.color.getHex())); break;
+          case "Static Orb": projectiles.push(new Projectile(this, fireDir, 25, 20, { size:.6, life:2 })); break;
+          case "Ball Lightning": projectiles.push(new Projectile(this, fireDir, 12, 15, { size:.8, life:4, piercing:true })); break;
+          case "Eye of the Storm": specialObjects.push(new EyeOfTheStorm(this)); break;
+          case "Singularity": specialObjects.push(new Singularity(this, this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(12)))); break;
+          case "Gravity Well": if(opponent && !opponent.isDead) opponent.status.rooted = 2.5; specialObjects.push(new ExpandingRing(opponent.mesh.position, CHARACTERS['VORTEX'].color, 4, 1)); break;
+          case "Event Horizon": players.forEach(p => { if (p !== this && !p.isDead) p.takeDamage(35); }); specialObjects.push(new ExpandingRing(this.mesh.position, CHARACTERS['VORTEX'].color, arenaSize, 1.5)); specialObjects.push(new ParticleSystem(this.mesh.position, {count: 300, duration: 1.5, speed: 20, startColor: new THREE.Color(CHARACTERS['VORTEX'].color), endColor: new THREE.Color(0x000000)})); break;
+          case "Doppelganger": specialObjects.push(new Doppelganger(this)); break;
+          case "Shimmer": this.status.cloaked = 3; this.velocity.add(this.aimDirection.clone().multiplyScalar(15)); break;
+          case "Hallucinate": if(opponent) { for(let i=0;i<4;i++) specialObjects.push(new Doppelganger(this)); } break;
+          case "Build Turret": specialObjects.push(new SentryTurret(this, this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(2)))); break;
+          case "Barrier Wall": specialObjects.push(new BarrierWall(this, this.mesh.position.clone().add(this.aimDirection.clone().multiplyScalar(5)), this.mesh.quaternion)); break;
+          case "Siege Mode": this.status.siege = 10; this.status.rooted = 10; specialObjects.push(new StatusAura(this, 10, 0xff8c00)); break;
+          case "Caustic Blast": projectiles.push(new Projectile(this, fireDir, 15, 18, { effects: {slowed: 2, venom: 3} })); break;
+          case "Adrenal Haze": specialObjects.push(new AdrenalHaze(this)); break;
+          case "Chain Reaction": if(opponent && !opponent.isDead && opponent.status.venom > 0) { opponent.takeDamage(opponent.status.venom * 10); opponent.status.venom = 0; specialObjects.push(new ParticleSystem(opponent.mesh.position, {startColor: new THREE.Color(CHARACTERS['CATALYST'].color), count: 100, duration: 1})); } break;
+          case "Iaijutsu Dash": this.velocity.add(this.aimDirection.clone().multiplyScalar(30)); specialObjects.push(new MeleeSlash(this, this.mesh.children[0].material.color)); if(opponent && !opponent.isDead && opponent.mesh.position.distanceTo(this.mesh.position) < 5) opponent.takeDamage(15); break;
+          case "Parry Stance": this.status.parry = 1.5; specialObjects.push(new ShieldEffect(this, 1.5, 0xffffff)); break;
+          case "Blade Fury": specialObjects.push(new BladeFury(this)); break;
+        }
+      }
+    }
+
+    /********** Flow: start & end game **********/
+    window.startGame = function startGame(p1Key, p2Key){
+      if (CCA.flow.gameState === 'GAME_OVER') {
+          resetGame(false);
+      }
+
+      if(window.mode.isOnline) {
+          p1Select = charKeys.indexOf(p1Key);
+          p2Select = charKeys.indexOf(p2Key);
+      }
+      if(p1Select === -1 || p2Select === -1) {
+          console.error("Invalid character selection:", p1Key, p2Key);
+          return;
+      }
+
+      camera.position.set(0,35,0.1); camera.lookAt(0,0,0);
+      CCA.flow.gameState='COUNTDOWN'; window.switchScreen(''); document.getElementById('ui-container').style.opacity=1;
+
+      if (window.players.length > 0) {
+          console.warn("Starting game with existing players, resetting first.");
+          resetGame(false);
+      }
+      window.players.push(new Player(1, p1Key)); window.players.push(new Player(2, p2Key));
+      window.players.forEach(p=>{ specialObjects.push(new SpawnEffect(p.mesh.position, CHARACTERS[p.characterKey].color)); });
+
+      if(window.mode.current.rift){ specialObjects.push(new Rift()); }
+      buildPlayerHUD(1, CHARACTERS[p1Key]); buildPlayerHUD(2, CHARACTERS[p2Key]);
+
+      const cd = document.getElementById('countdown-text'); let n=3; cd.textContent = n;
+      const iv = setInterval(()=>{ n--; if(n>0){ cd.textContent=n; } else { cd.textContent='FIGHT!'; CCA.flow.gameState='ACTIVE'; setTimeout(()=>cd.textContent='',900); clearInterval(iv); if(window.mode.isOnline && window.mode.onlineState.code) CCA.online.setStarted(window.mode.onlineState.code).catch(()=>{}); } }, 1000);
+    }
+
+    async function endGame(winnerNum){
+      if (CCA.flow.gameState === 'GAME_OVER') return;
+      console.log(`Ending game. Winner: Player ${winnerNum}`);
+      
+      CCA.flow.gameState='GAME_OVER';
+      
+      const winnerPlayer = window.players.find(p => p.playerNum === winnerNum);
+      const loserPlayer = window.players.find(p => p.playerNum !== winnerNum);
+
+       if (loserPlayer && !loserPlayer.isDead) {
+          loserPlayer.isDead = true;
+          loserPlayer.mesh.visible = false;
+          Object.values(loserPlayer.statusMeshes).forEach(m=>{ if(m) { scene.remove(m); if(m.geometry) m.geometry.dispose(); if(m.material) m.material.dispose(); } });
+          loserPlayer.statusMeshes = {};
+          if (loserPlayer.riftLight) loserPlayer.mesh.remove(loserPlayer.riftLight);
+          loserPlayer.riftLight = null;
+          if (loserPlayer.aura) {
+              loserPlayer.aura.destroy();
+              const auraIndex = specialObjects.indexOf(loserPlayer.aura);
+              if(auraIndex > -1) specialObjects.splice(auraIndex, 1);
+          }
+      }
+      
+      if (!winnerPlayer) {
+          console.error("EndGame called but winner player not found:", winnerNum);
+          resetGame(true);
+          return;
+      } 
+
+      const winnerData = CHARACTERS[winnerPlayer.characterKey];
+      const winnerNickname = window.loggedInUsers[winnerNum===1?'p1':'p2'] || `Player ${winnerNum}`;
+      document.getElementById('winner-text').innerHTML = `<span style="color:#${new THREE.Color(winnerData.color).getHexString()}">${winnerNickname} (${winnerData.name}) WINS!</span>`;
+      
+      const isMyWin = !window.mode.isOnline || (window.mode.onlineState.isHost && winnerNum === 1) || (!window.mode.onlineState.isHost && winnerNum === 2);
+
+      try{
+        if(isMyWin && window.firebaseAuth?.currentUser && !window.firebaseAuth.currentUser.isAnonymous) {
+            await window.addWin(window.firebaseAuth.currentUser.uid, window.mode.current.key);
+        }
+        if(window.mode.isOnline && window.mode.onlineState.isHost && online.code) {
+            await setWinner(online.code, winnerNum);
+        }
+      }catch(e) {
+          console.error("Error during endGame leaderboard update:", e);
+      }
+      
+      if (eventsListenerUnsub) {
+          console.log("Unsubscribing from events listener in endGame");
+          try { eventsListenerUnsub(); } catch(e) { console.error("Error unsubscribing events:", e); }
+          eventsListenerUnsub = null;
+      }
+
+      window.switchScreen('game-over-screen');
+    }
+    window.endGame = endGame;
+
+    function resetGame(returnToMenu=false){
+      console.log("Resetting game, returnToMenu:", returnToMenu);
+      
+       if (eventsListenerUnsub) {
+          console.log("Unsubscribing from events listener in resetGame");
+          try { eventsListenerUnsub(); } catch(e) { console.error("Error unsubscribing events:", e); }
+          eventsListenerUnsub = null;
+       }
+       if (online.unsub) {
+          console.log("Unsubscribing from room listener in resetGame");
+          try { online.unsub(); } catch(e) { console.error("Error unsubscribing room:", e); }
+          online.unsub = null;
+       }
+
+      try {
+        window.players.forEach(p=>{ if(p && typeof p.destroy === 'function') p.destroy(); });
+      } catch(e) { console.error("Error destroying players:", e); }
+      window.players=[];
+      
+      try {
+        projectiles.forEach(p=>{ if(p && typeof p.destroy === 'function') p.destroy(); });
+      } catch(e) { console.error("Error destroying projectiles:", e); }
+      projectiles=[];
+      
+      try {
+        specialObjects.forEach(o => { if (o && typeof o.destroy === 'function') o.destroy(); });
+      } catch(e) { console.error("Error destroying special objects:", e); }
+      specialObjects=[];
+      
+      try {
+        Object.values(hudScenes).forEach(s => {
+            if (s) {
+                s.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => { if(mat && mat.dispose) mat.dispose(); });
+                        } else {
+                             if (child.material.dispose) child.material.dispose();
+                        }
+                    }
+                });
+            }
+        });
+      } catch(e) { console.error("Error cleaning HUD scenes:", e); }
+      
+      hudScenes = { p1: null, p2: null };
+      hudCameras = { p1: null, p2: null };
+      hudModels = { p1: null, p2: null };
+      document.getElementById('player1-hud').innerHTML = '';
+      document.getElementById('player2-hud').innerHTML = '';
+      
+      p1Select=-1; p2Select=-1; p1Locked=p2Locked=false; 
+      document.getElementById('ui-container').style.opacity=0;
+      
+      if(returnToMenu){ 
+        CCA.flow.gameState='START_SCREEN'; 
+        window.switchScreen('start-screen'); 
+        online = { code:null, isHost:false, unsub:null, ready:false };
+        $('find-match-button').disabled = false;
+        $('cancel-match-button').style.display = 'none';
+        $('room-status').textContent = '';
+      } else {
+         CCA.flow.gameState = 'CHAR_SELECT';
+      }
+    }
+    document.getElementById('restart-button').addEventListener('click', ()=> resetGame(true));
+
+    /********** Event listeners **********/
+    window.addEventListener('resize', ()=>{ 
+        camera.aspect=innerWidth/innerHeight; 
+        camera.updateProjectionMatrix(); 
+        renderer.setSize(innerWidth, innerHeight); 
+    });
+    window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+    window.addEventListener('keypress', e => {
+        if (CCA.flow.gameState !== 'ACTIVE' || window.players.length < 2) return;
+        const key = e.key.toLowerCase();
+        
+        const myPlayer = !window.mode.isOnline ? null : (window.mode.onlineState.isHost ? window.players[0] : window.players[1]);
+
+        if (!window.mode.isOnline) {
+            const p1 = window.players.find(p => p.playerNum === 1);
+            const p2 = window.players.find(p => p.playerNum === 2);
+
+            const p1c = controls.p1;
+            if (p1 && !p1.isDead && key === p1c.basicAttack) p1.useSkill('basicAttack');
+            if (p1 && !p1.isDead && key === p1c.skill1) p1.useSkill('s1');
+            if (p1 && !p1.isDead && key === p1c.skill2) p1.useSkill('s2');
+            if (p1 && !p1.isDead && key === p1c.skill3) p1.useSkill('s3');
+            
+            const p2c = controls.p2;
+            if (p2 && !p2.isDead && key === p2c.basicAttack) p2.useSkill('basicAttack');
+            if (p2 && !p2.isDead && key === p2c.skill1) p2.useSkill('s1');
+            if (p2 && !p2.isDead && key === p2c.skill2) p2.useSkill('s2');
+            if (p2 && !p2.isDead && key === p2c.skill3) p2.useSkill('s3');
+            return;
+        }
+        
+        if (myPlayer && !myPlayer.isDead) {
+            const c = controls.p1;
+            if (key === c.basicAttack) myPlayer.useSkill('basicAttack');
+            if (key === c.skill1) myPlayer.useSkill('s1');
+            if (key === c.skill2) myPlayer.useSkill('s2');
+            if (key === c.skill3) myPlayer.useSkill('s3');
+        }
+    });
+
+    /********** Animate **********/
+    function animate(){
+      requestAnimationFrame(animate);
+      const delta = Math.min(0.05, clock.getDelta());
+      
+      if(CCA.flow.gameState==='ACTIVE' && window.players.length===2){
+        const [p1,p2]=window.players; 
+        if(p1 && !p1.isDead) p1.update(delta,p2);
+        if(p2 && !p2.isDead) p2.update(delta,p1);
+        
+        for(let i=projectiles.length-1;i>=0;i--) {
+            if (projectiles[i]) projectiles[i].update(delta);
+        }
+        for(let i=specialObjects.length-1;i>=0;i--){ 
+            if (specialObjects[i] && typeof specialObjects[i].update === 'function') {
+                specialObjects[i].update(delta, window.players, projectiles); 
+                if(specialObjects[i].duration<=0){ 
+                   if (typeof specialObjects[i].destroy === 'function') specialObjects[i].destroy(); 
+                   specialObjects.splice(i,1); 
+                } 
+            } else {
+                 console.warn("Found invalid object in specialObjects at index:", i, specialObjects[i]);
+                 specialObjects.splice(i, 1);
+            }
+        }
+        
+        updateUI();
+        
+        if (p1 && p1.mesh && p2 && p2.mesh) {
+            const p1Pos = p1.mesh.position, p2Pos = p2.mesh.position;
+            const mid=new THREE.Vector3().addVectors(p1Pos,p2Pos).multiplyScalar(.5);
+            const dist=Math.max(15, p1Pos.distanceTo(p2Pos));
+            const zoom=Math.min(40, dist*1.2);
+            const camTarget = new THREE.Vector3(mid.x, zoom, mid.z + zoom*.5); 
+            
+             if (!isNaN(camTarget.x) && !isNaN(camTarget.y) && !isNaN(camTarget.z)) {
+                camera.position.lerp(camTarget,.05); 
+                camera.lookAt(mid);
+             } else {
+                 console.warn("Camera target has NaN values, skipping lerp:", camTarget);
+             }
+        }
+      
+      } else if(CCA.flow.gameState!=='COUNTDOWN'){
+        const t=clock.getElapsedTime(); camera.position.set(Math.sin(t*.1)*25,15,Math.cos(t*.1)*25); camera.lookAt(0,0,0);
+      }
+
+      renderer.setScissorTest(false);
+      renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
+      renderer.render(scene,camera);
+
+      if (CCA.flow.gameState === 'ACTIVE' || CCA.flow.gameState === 'COUNTDOWN') {
+          renderHUDs(delta);
+      }
+    }
+    animate();
+
+  </script>
+</body>
+</html>
