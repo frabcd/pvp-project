@@ -1,5 +1,5 @@
 # pvp-project
-## What's New in V4.1:
+## What's New in V4:
 # 🐛 Critical Bug Fixes:
 
 Fixed room connection race conditions in online mode
