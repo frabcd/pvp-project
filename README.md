@@ -1,29 +1,41 @@
-# pvp-project
-## What's New in V4:
-# 🐛 Critical Bug Fixes:
+## Chroma Core Arena - V4.1 Update
 
-Fixed room connection race conditions in online mode
-Improved memory management and resource cleanup
-Fixed HP synchronization issues between clients
-Proper event listener cleanup on game end
-Fixed geometry disposal memory leaks
-Enhanced error handling throughout
+Welcome to Chroma Core Arena V4.1! This version introduces significant gameplay enhancements, visual upgrades, and crucial bug fixes.
 
-# ⚖️ Balance Changes:
+# Key Updates in V4.0 - V4.1:
 
-Energy System: Rift mode now gives +15/s (total 20/s) instead of +25/s
-Echo Prime: Phase Shift cooldown 4s → 5s
-Tempest: Ball Lightning damage 15 → 12
-Vortex: Event Horizon damage 40 → 35
-Oracle: Empower duration 4s → 6s (more useful now!)
-Catalyst: Caustic Blast cost 25 → 20 (more accessible)
-Normalized projectile speeds for consistency
+# Gameplay Overhaul (V4.1):
 
-# 🎮 How to Play:
+Passive Abilities: Every Echo now has a unique passive ability, adding strategic depth.
 
-Login with a nickname/password or play as guest
-Choose Mode: Local or Online, Classic or Rift
-Select Character: 16 unique fighters with different playstyles
-Fight: Use WASD + Space/Q/E/R (P1) or IJKL + Enter/U/O/P (P2)
+4-Skill System & Ultimates: All Echos now feature 4 active skills, including a powerful Ultimate ability (bound to F/H by default).
 
-The game is now more stable, better balanced, and ready for competitive play! Enjoy! ✨
+Balance: Skills, costs, and cooldowns have been re-balanced across the roster.
+
+# Visual Enhancements:
+
+Character Model Overhaul (V4.0): All 16 Echos boast unique, procedurally generated models.
+
+Improved Camera (V4.1): Added interactive OrbitControls for camera movement in menus, with auto-rotation.
+
+# UI Updates:
+
+In-game HUD updated for the 5-skill layout (Basic + 4 Skills).
+
+Character Select screen now details Passive and all 4 skill names.
+
+# Bug Fixes (V4.0 & V4.1):
+
+Resolved the "forever white" visual bug occurring after taking damage.
+
+Corrected minimap rendering and display logic.
+
+Addressed various online mode stability issues (room handling, state syncing).
+
+Fixed several memory leaks related to geometry and event listeners.
+
+# Character Reworks (V4.0):
+
+Updated Emperor (formerly Mirage) skills to align more closely with LoL's Azir (wall pushes forward, dash grants shield).
+
+This project showcases real-time multiplayer gameplay using Three.js for rendering and Firebase for backend services (authentication, Firestore database, matchmaking).
