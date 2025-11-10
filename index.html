@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Chroma Core Arena — V5.2 (Camera & Minimap Fix)</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="login-screen" class="screen active">
+    <div class="panel">
+      <h1 id="login-title">PLAYER LOGIN</h1>
+      <input id="login-nickname" type="text" placeholder="NICKNAME (3-10 chars)" maxlength="10" minlength="3">
+      <input id="login-password" type="password" placeholder="PASSWORD (min 4 chars)" minlength="4">
+      <p id="login-message">&nbsp;</p>
+      <div style="display:flex;justify-content:center;gap:18px">
+        <button id="login-button" class="menu-button" style="width:200px;">LOGIN</button>
+        <button id="signup-button" class="menu-button" style="width:200px;">SIGN UP</button>
+      </div>
+        <button id="guest-login-button" class="menu-button" style="width:200px; margin-top: 10px;">Play as Guest</button>
+    </div>
+  </div>
+
+  <div id="tutorial-prompt-screen" class="screen">
+    <div class="panel">
+      <h1>WELCOME TO CHROMA CORE!</h1>
+      <p style="font-size: 1.2em; margin-bottom: 30px;">We see you're new here. Would you like a quick tutorial to learn the controls?</p>
+      <div style="display:flex;justify-content:center;gap:18px">
+        <button id="tutorial-start-button" class="menu-button" style="width:250px;">Start Tutorial</button>
+        <button id="tutorial-skip-button" class="menu-button" style="width:250px;">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="start-screen" class="screen">
+    <div class="panel">
+      <h1>CHROMA CORE ARENA V5</h1>
+      <div class="tabs" id="mode-tabs">
+        <div class="tab active" data-mode="LOCAL_CLASSIC">Local Classic Duel</div>
+        <div class="tab" data-mode="LOCAL_RIFT">Local Rift Duel</div>
+        <div class="tab" data-mode="ONLINE_CLASSIC">Online Classic Duel</div>
+        <div class="tab" data-mode="ONLINE_RIFT">Online Rift Duel</div>
+      </div>
+      <button id="start-button" class="menu-button">START LOCAL DUEL</button>
+      <button id="leaderboard-button" class="menu-button">LEADERBOARD</button>
+      <button id="settings-button" class="menu-button">SETTINGS</button>
+
+      <div id="online-controls" style="display:none;margin-top:14px">
+        
+        <div id="ai-fallback-container" style="margin-bottom: 15px;">
+          <label for="ai-fallback-tier" style="font-size: 1.1em; margin-right: 10px; color: #00ffff;">AI Fallback Tier:</label>
+          <select id="ai-fallback-tier" class="menu-button" style="width: 200px; padding: 10px; font-size: 1em; cursor: pointer;">
+            <option value="Noob">Noob</option>
+            <option value="Adept">Adept</option>
+            <option value="Pro" selected>Pro</option>
+            <option value="Master">Master</option>
+            <option value="Devil">Devil</option>
+          </select>
+        </div>
+        <button id="find-match-button" class="menu-button">Find Online Match</button>
+        <button id="cancel-match-button" class="menu-button" style="display:none; background-color:#c00;">Cancel Search</button>
+        <p id="room-status">&nbsp;</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboard-screen" class="screen">
+    <div class="panel" style="width: 900px;">
+      <h1>LEADERBOARD</h1>
+      <div class="tabs" id="lb-tabs">
+        <div class="tab active" data-lb="LOCAL_CLASSIC">Local Classic</div>
+        <div class="tab" data-lb="LOCAL_RIFT">Local Rift</div>
+        <div class="tab" data-lb="ONLINE_CLASSIC">Online Classic</div>
+        <div class="tab" data-lb="ONLINE_RIFT">Online Rift</div>
+      </div>
+      <div id="leaderboard-table"></div>
+      <p id="leaderboard-message">&nbsp;</p>
+      <div id="import-export-section" style="margin-top:20px;border-top:1px solid #00ffff;padding-top:12px">
+        <textarea id="import-data-area" placeholder="Paste exported leaderboard snapshot JSON here (optional)…"></textarea>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button id="import-leaderboard-button" class="menu-button" style="width:auto;">Import Snapshot</button>
+          <button id="export-leaderboard-button" class="menu-button" style="width:auto;">Export Snapshot</button>
+        </div>
+      </div>
+      <button id="leaderboard-back-button" class="menu-button" style="margin-top: 16px;">BACK</button>
+    </div>
+  </div>
+
+  <div id="settings-screen" class="screen">
+    <div class="panel">
+      <h1>SETTINGS</h1>
+      <p style="margin-bottom: 25px;">Player controls for local multiplayer mode. Online mode uses Player 1 controls.</p>
+      <div class="settings-container" style="display:flex;gap:50px;flex-wrap:wrap;justify-content:center">
+        <div class="player-settings">
+          <h2 style="color:#00ffff;">PLAYER 1 (WASD)</h2>
+          <div>Forward: W</div><div>Backward: S</div><div>Left: A</div><div>Right: D</div>
+          <div>Basic: Space</div><div>Skill 1: Q</div><div>Skill 2: E</div><div>Skill 3: R</div><div>Skill 4 (Ult): F</div>
+        </div>
+        <div class="player-settings">
+          <h2 style="color:#ff00ff;">PLAYER 2 (IJKL)</h2>
+          <div>Forward: I</div><div>Backward: K</div><div>Left: J</div><div>Right: L</div>
+          <div>Basic: Enter</div><div>Skill 1: U</div><div>Skill 2: O</div><div>Skill 3: P</div><div>Skill 4 (Ult): H</div>
+        </div>
+      </div>
+      <button id="settings-back-button" class="menu-button">BACK</button>
+    </div>
+  </div>
+
+  <div id="char-select-screen" class="screen">
+    <div class="panel">
+      <h1>CHOOSE YOUR ECHO</h1>
+      <div id="char-grid" class="char-grid"></div>
+      <div id="char-select-footer">
+        <p id="lock-in-status">Player 1: Click to select your Echo</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-over-screen" class="screen">
+    <div class="panel">
+      <div id="winner-text" style="font-size: 2.4em; margin-bottom: 20px;"></div>
+      <button id="restart-button" class="menu-button">RETURN TO MENU</button>
+    </div>
+  </div>
+
+  <div id="ui-container">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="player1-hud" class="player-hud"></div>
+    <div id="player2-hud" class="player-hud"></div>
+  </div>
+  <div id="game-message-container"><span id="countdown-text"></span></div>
+
+  <div id="tutorial-overlay">
+    <div id="tutorial-arrow">⬇</div>
+    <div id="tutorial-box">
+      <span id="tutorial-text">Welcome to the tutorial!</span>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+  
+  <script type="module">
+    // This ensures Firebase is loaded before our main script
+    import "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+    import "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  </script>
+
+  <script type="module" src="main.js"></script>
+
+</body>
+</html>
