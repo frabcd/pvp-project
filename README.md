@@ -1,41 +1,74 @@
-## Chroma Core Arena - V4.1 Update
+# Chroma Core Arena V5.2
 
-Welcome to Chroma Core Arena V4.1! This version introduces significant gameplay enhancements, visual upgrades, and crucial bug fixes.
 
-# Key Updates in V4.0 - V4.1:
 
-# Gameplay Overhaul (V4.1):
+A fast-paced, 1v1 3D arena brawler built with Three.js and Firebase, featuring a "flawless" superhuman AI.
 
-Passive Abilities: Every Echo now has a unique passive ability, adding strategic depth.
+---
 
-4-Skill System & Ultimates: All Echos now feature 4 active skills, including a powerful Ultimate ability (bound to F/H by default).
+`Chroma Core Arena` is a real-time dueling game where players choose from a roster of 16 unique "Echos," each with their own set of powerful abilities. Challenge friends in local or online multiplayer, or test your skills against a custom-built, "better-than-human" AI designed to be the ultimate opponent.
 
-Balance: Skills, costs, and cooldowns have been re-balanced across the roster.
+---
 
-# Visual Enhancements:
+## 🚀 Key Features
 
-Character Model Overhaul (V4.0): All 16 Echos boast unique, procedurally generated models.
+* **16 Unique Characters:** Master a diverse roster of "Echos," from the kiting master **Echo Prime** to the zoning specialist **Oracle**.
+* **Deep Combat System:** Every Echo has 4 active skills, a powerful Ultimate, and a unique passive ability.
+* **Full Multiplayer Suite:**
+    * **Local 1v1 Duels:** Battle a friend on the same machine.
+    * **Online Matchmaking:** Uses Firebase to find opponents for Classic or Rift duels.
+    * **Online Leaderboards:** Compete for the top spot, powered by Firestore.
+* **"Flawless" AI Opponent:** A custom-built, "Dual-Process" AI system.
+    * **Human-like Tactics:** The "Tactical Brain" uses character-specific mastery for kiting, zoning, and repositioning around obstacles.
+    * **Superhuman Reflexes:** The "Survival Brain" runs every frame to execute perfect, 0ms-reaction dodges, even using mobility skills (like `Phase Shift`) to escape danger.
+    * **Scaling Difficulty:** From "Noob" (slow reactions) to "Devil" (flawless, 0ms reaction time).
 
-Improved Camera (V4.1): Added interactive OrbitControls for camera movement in menus, with auto-rotation.
+---
 
-# UI Updates:
+## 🎮 Controls
 
-In-game HUD updated for the 5-skill layout (Basic + 4 Skills).
+### Player 1 (Used for all Online play)
 
-Character Select screen now details Passive and all 4 skill names.
+* **Move:** `WASD`
+* **Basic Attack:** `Space`
+* **Skills 1-3:** `Q`, `E`, `R`
+* **Ultimate (Skill 4):** `F`
 
-# Bug Fixes (V4.0 & V4.1):
+### Player 2 (Local Play Only)
 
-Resolved the "forever white" visual bug occurring after taking damage.
+* **Move:** `IJKL`
+* **Basic Attack:** `Enter`
+* **Skills 1-3:** `U`, `O`, `P`
+* **Ultimate (Skill 4):** `H`
 
-Corrected minimap rendering and display logic.
 
-Addressed various online mode stability issues (room handling, state syncing).
 
-Fixed several memory leaks related to geometry and event listeners.
+---
 
-# Character Reworks (V4.0):
+## 💻 Tech Stack
 
-Updated Emperor (formerly Mirage) skills to align more closely with LoL's Azir (wall pushes forward, dash grants shield).
+* **Frontend:** HTML5, CSS3, JavaScript (ES6 Modules)
+* **Graphics:** [Three.js](https://threejs.org/)
+* **Audio:** [Tone.js](https://tonejs.github.io/)
+* **Backend & DB:** [Firebase](https://firebase.google.com/) (Authentication, Firestore, Matchmaking)
 
-This project showcases real-time multiplayer gameplay using Three.js for rendering and Firebase for backend services (authentication, Firestore database, matchmaking).
+---
+
+## 🔧 Running the Game Locally
+
+1.  **Firebase Setup:** This project requires a Firebase backend. You must create your own Firebase project and add your project's `firebaseConfig` object to the top of `firebase.js`.
+
+2.  **Run a Local Server:** This project uses ES6 modules, so it **must** be run from a local server. It will **not** work by opening `index.html` directly.
+
+    The easiest way is using the **`Live Server`** extension in VS Code.
+
+    Alternatively, use a simple HTTP server from your terminal:
+    ```bash
+    # If you don't have it, install it globally
+    npm install -g http-server
+
+    # Run the server in the project's root directory
+    http-server
+    ```
+
+3.  **Play:** Open your local server address (e.g., `http://127.0.0.1:8080`) in your browser.
